@@ -1,0 +1,49 @@
+/* Custom styles for Health Appointment System */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.feature-icon {
+    width: 4rem;
+    height: 4rem;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    border-radius: 0.5rem;
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+footer {
+    margin-top: 3rem;
+}
+
+/* Dashboard styles */
+.dashboard-stat-card {
+    border-left: 4px solid #0d6efd;
+}
+
+/* Form styles */
+.form-label {
+    font-weight: 500;
+}
+
+/* Custom button styles */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}

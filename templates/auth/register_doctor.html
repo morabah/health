@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Registration - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Doctor Registration</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Your account will require credential verification before activation. Please have your license and certification documents ready to upload.
+                </div>
+                
+                <form method="POST" action="{{ url_for('auth.register_doctor') }}" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h4>Account Information</h4>
+                            <hr>
+                            
+                            <div class="mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else "")) }}
+                                {% for error in form.email.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <small class="form-text text-muted">We'll send a verification link to this email.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.phone.label(class="form-label") }}
+                                {{ form.phone(class="form-control" + (" is-invalid" if form.phone.errors else ""), placeholder="+213XXXXXXXXX") }}
+                                {% for error in form.phone.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <small class="form-text text-muted">We'll send a verification code to this number.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                                {% for error in form.password.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                                <small class="form-text text-muted">Must be at least 8 characters with letters and numbers.</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.confirm_password.label(class="form-label") }}
+                                {{ form.confirm_password(class="form-control" + (" is-invalid" if form.confirm_password.errors else "")) }}
+                                {% for error in form.confirm_password.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h4>Personal Information</h4>
+                            <hr>
+                            
+                            <div class="mb-3">
+                                {{ form.first_name.label(class="form-label") }}
+                                {{ form.first_name(class="form-control" + (" is-invalid" if form.first_name.errors else "")) }}
+                                {% for error in form.first_name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.last_name.label(class="form-label") }}
+                                {{ form.last_name(class="form-control" + (" is-invalid" if form.last_name.errors else "")) }}
+                                {% for error in form.last_name.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.specialty.label(class="form-label") }}
+                                {{ form.specialty(class="form-control" + (" is-invalid" if form.specialty.errors else "")) }}
+                                {% for error in form.specialty.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.license_number.label(class="form-label") }}
+                                {{ form.license_number(class="form-control" + (" is-invalid" if form.license_number.errors else "")) }}
+                                {% for error in form.license_number.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.years_of_experience.label(class="form-label") }}
+                        {{ form.years_of_experience(class="form-control" + (" is-invalid" if form.years_of_experience.errors else ""), type="number", min="0") }}
+                        {% for error in form.years_of_experience.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.education.label(class="form-label") }}
+                        {{ form.education(class="form-control" + (" is-invalid" if form.education.errors else ""), rows=3) }}
+                        {% for error in form.education.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">Please list your degrees, institutions, and graduation years.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.bio.label(class="form-label") }}
+                        {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows=3) }}
+                        {% for error in form.bio.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">A brief professional bio that will be visible to patients.</small>
+                    </div>
+                    
+                    <h4 class="mt-4">Credential Verification</h4>
+                    <hr>
+                    
+                    <div class="mb-3">
+                        {{ form.license_document.label(class="form-label") }}
+                        {{ form.license_document(class="form-control" + (" is-invalid" if form.license_document.errors else "")) }}
+                        {% for error in form.license_document.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">Upload a scanned copy of your medical license (PDF, JPG, or PNG).</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.certificate.label(class="form-label") }}
+                        {{ form.certificate(class="form-control" + (" is-invalid" if form.certificate.errors else "")) }}
+                        {% for error in form.certificate.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">Upload a scanned copy of your medical certificate or diploma (PDF, JPG, or PNG).</small>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        {{ form.terms_agreement(class="form-check-input" + (" is-invalid" if form.terms_agreement.errors else "")) }}
+                        {{ form.terms_agreement.label(class="form-check-label") }}
+                        {% for error in form.terms_agreement.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="termsCheck" required>
+                        <label class="form-check-label" for="termsCheck">I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Conditions</a> and <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">Privacy Policy</a></label>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <p>Already have an account? <a href="{{ url_for('auth.login') }}">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Acceptance of Terms</h6>
+                <p>By registering for an account on Health Appointment, you agree to these Terms and Conditions.</p>
+                
+                <h6>2. User Accounts</h6>
+                <p>You are responsible for maintaining the confidentiality of your account information and password.</p>
+                
+                <h6>3. Medical Disclaimer</h6>
+                <p>Health Appointment is not a substitute for professional medical advice, diagnosis, or treatment.</p>
+                
+                <h6>4. Doctor Verification</h6>
+                <p>All doctors must undergo credential verification before their accounts are activated. Providing false information may result in account termination.</p>
+                
+                <!-- Add more terms as needed -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Privacy Policy Modal -->
+<div class="modal fade" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="privacyModalLabel">Privacy Policy</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>1. Information We Collect</h6>
+                <p>We collect personal information such as name, email, phone number, and professional credentials to provide our services.</p>
+                
+                <h6>2. How We Use Your Information</h6>
+                <p>Your information is used to facilitate appointments, improve our services, and communicate with you.</p>
+                
+                <h6>3. Data Security</h6>
+                <p>We implement security measures to protect your personal information from unauthorized access.</p>
+                
+                <!-- Add more privacy policy details as needed -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

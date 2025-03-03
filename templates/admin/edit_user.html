@@ -1,0 +1,165 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Edit User{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Edit User</h1>
+    <a href="{{ url_for('admin_panel.user_detail', user_id=user.id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to User Details
+    </a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">User Information</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('admin_panel.edit_user', user_id=user.id) }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="first_name" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="last_name" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="phone" class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="phone" name="phone" value="{{ user.phone }}" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="password" class="form-label">Password (leave blank to keep current)</label>
+                    <input type="password" class="form-control" id="password" name="password">
+                    <small class="form-text text-muted">Only fill this if you want to change the password.</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Account Status</label>
+                    <div class="mt-2">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if user.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Active</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="email_verified" name="email_verified" {% if user.email_verified %}checked{% endif %}>
+                            <label class="form-check-label" for="email_verified">Email Verified</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="phone_verified" name="phone_verified" {% if user.phone_verified %}checked{% endif %}>
+                            <label class="form-check-label" for="phone_verified">Phone Verified</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Patient-specific fields -->
+            {% if user.user_type.name == 'PATIENT' and profile %}
+            <div class="mt-4">
+                <h5 class="mb-3">Patient Information</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="gender" class="form-label">Gender</label>
+                        <select class="form-select" id="gender" name="gender">
+                            <option value="male" {% if profile.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if profile.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="other" {% if profile.gender == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="date_of_birth" class="form-label">Date of Birth</label>
+                        <input type="text" class="form-control" id="date_of_birth" name="date_of_birth" value="{{ profile.date_of_birth }}" placeholder="YYYY-MM-DD">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="blood_type" class="form-label">Blood Type</label>
+                        <select class="form-select" id="blood_type" name="blood_type">
+                            <option value="A+" {% if profile.blood_type == 'A+' %}selected{% endif %}>A+</option>
+                            <option value="A-" {% if profile.blood_type == 'A-' %}selected{% endif %}>A-</option>
+                            <option value="B+" {% if profile.blood_type == 'B+' %}selected{% endif %}>B+</option>
+                            <option value="B-" {% if profile.blood_type == 'B-' %}selected{% endif %}>B-</option>
+                            <option value="AB+" {% if profile.blood_type == 'AB+' %}selected{% endif %}>AB+</option>
+                            <option value="AB-" {% if profile.blood_type == 'AB-' %}selected{% endif %}>AB-</option>
+                            <option value="O+" {% if profile.blood_type == 'O+' %}selected{% endif %}>O+</option>
+                            <option value="O-" {% if profile.blood_type == 'O-' %}selected{% endif %}>O-</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="medical_history" class="form-label">Medical History</label>
+                    <textarea class="form-control" id="medical_history" name="medical_history" rows="3">{{ profile.medical_history }}</textarea>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Doctor-specific fields -->
+            {% if user.user_type.name == 'DOCTOR' and profile %}
+            <div class="mt-4">
+                <h5 class="mb-3">Doctor Information</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="specialty" class="form-label">Specialty</label>
+                        <input type="text" class="form-control" id="specialty" name="specialty" value="{{ profile.specialty }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="license_number" class="form-label">License Number</label>
+                        <input type="text" class="form-control" id="license_number" name="license_number" value="{{ profile.license_number }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="years_of_experience" class="form-label">Years of Experience</label>
+                        <input type="number" class="form-control" id="years_of_experience" name="years_of_experience" min="0" value="{{ profile.years_of_experience }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="verification_status" class="form-label">Verification Status</label>
+                        <select class="form-select" id="verification_status" name="verification_status">
+                            <option value="pending" {% if profile.verification_status.name == 'PENDING' %}selected{% endif %}>Pending</option>
+                            <option value="verified" {% if profile.verification_status.name == 'VERIFIED' %}selected{% endif %}>Verified</option>
+                            <option value="rejected" {% if profile.verification_status.name == 'REJECTED' %}selected{% endif %}>Rejected</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="education" class="form-label">Education</label>
+                    <input type="text" class="form-control" id="education" name="education" value="{{ profile.education }}">
+                </div>
+                <div class="mb-3">
+                    <label for="bio" class="form-label">Bio</label>
+                    <textarea class="form-control" id="bio" name="bio" rows="3">{{ profile.bio }}</textarea>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{{ url_for('admin_panel.user_detail', user_id=user.id) }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    // Initialize date picker
+    flatpickr("#date_of_birth", {
+        dateFormat: "Y-m-d",
+        maxDate: "today"
+    });
+</script>
+{% endblock %}

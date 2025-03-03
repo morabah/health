@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}About - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="text-center mb-4">About Health Appointment</h1>
+        
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h2>Our Mission</h2>
+                <p class="lead">To provide accessible, efficient, and secure healthcare services by connecting patients with qualified healthcare professionals.</p>
+                <p>At Health Appointment, we believe that healthcare should be accessible to everyone. Our platform is designed to break down barriers between patients and healthcare providers, making it easier for people to get the care they need when they need it.</p>
+            </div>
+        </div>
+        
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h2>Our Vision</h2>
+                <p>We envision a healthcare ecosystem where:</p>
+                <ul>
+                    <li>Patients can easily find and connect with the right healthcare providers</li>
+                    <li>Doctors can focus more on patient care and less on administrative tasks</li>
+                    <li>Medical information is securely stored and accessible when needed</li>
+                    <li>Healthcare services are delivered efficiently and effectively</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h2>Why Choose Us?</h2>
+                <div class="row g-4 mt-3">
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-shield-alt text-primary fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5>Secure & Confidential</h5>
+                                <p>Your health information is protected with state-of-the-art security measures.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-user-check text-primary fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5>Verified Doctors</h5>
+                                <p>All healthcare professionals on our platform are verified and credentialed.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-clock text-primary fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5>24/7 Availability</h5>
+                                <p>Book appointments and access your health information anytime, anywhere.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-mobile-alt text-primary fa-2x me-3"></i>
+                            </div>
+                            <div>
+                                <h5>User-Friendly</h5>
+                                <p>Our platform is designed to be intuitive and easy to use for everyone.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2>Our Team</h2>
+                <p>Health Appointment was founded by a team of healthcare professionals and technology experts who understand the challenges faced by both patients and healthcare providers.</p>
+                <p>Our diverse team is committed to continuously improving our platform based on user feedback and the latest advancements in healthcare technology.</p>
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('main.contact') }}" class="btn btn-primary">Contact Us</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

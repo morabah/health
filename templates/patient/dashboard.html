@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Dashboard - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Welcome, {{ current_user.first_name }}!</h1>
+        <p class="lead">Manage your appointments and health information from your personal dashboard.</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm dashboard-stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Upcoming Appointments</h6>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <div class="bg-primary bg-gradient text-white rounded-circle p-3">
+                        <i class="fas fa-calendar-check fa-2x"></i>
+                    </div>
+                </div>
+                <a href="#" class="btn btn-sm btn-outline-primary mt-3">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm dashboard-stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Medical Records</h6>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <div class="bg-success bg-gradient text-white rounded-circle p-3">
+                        <i class="fas fa-file-medical fa-2x"></i>
+                    </div>
+                </div>
+                <a href="#" class="btn btn-sm btn-outline-success mt-3">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm dashboard-stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Prescriptions</h6>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <div class="bg-info bg-gradient text-white rounded-circle p-3">
+                        <i class="fas fa-prescription fa-2x"></i>
+                    </div>
+                </div>
+                <a href="#" class="btn btn-sm btn-outline-info mt-3">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 shadow-sm dashboard-stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted">Messages</h6>
+                        <h2 class="mb-0">0</h2>
+                    </div>
+                    <div class="bg-warning bg-gradient text-white rounded-circle p-3">
+                        <i class="fas fa-envelope fa-2x"></i>
+                    </div>
+                </div>
+                <a href="#" class="btn btn-sm btn-outline-warning mt-3">View All</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Upcoming Appointments</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-day fa-4x text-muted mb-3"></i>
+                    <h5>No upcoming appointments</h5>
+                    <p>Schedule your first appointment with a doctor.</p>
+                    <a href="#" class="btn btn-primary">Book Appointment</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Recent Medical Records</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <i class="fas fa-file-medical-alt fa-4x text-muted mb-3"></i>
+                    <h5>No medical records available</h5>
+                    <p>Your medical records will appear here after your appointments.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Profile Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-user-circle fa-5x text-primary"></i>
+                </div>
+                
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="fw-bold">Name:</span>
+                        <span>{{ current_user.first_name }} {{ current_user.last_name }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="fw-bold">Email:</span>
+                        <span>{{ current_user.email }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span class="fw-bold">Phone:</span>
+                        <span>{{ current_user.phone }}</span>
+                    </li>
+                    {% if current_user.patient %}
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="fw-bold">Date of Birth:</span>
+                            <span>{{ current_user.patient.date_of_birth }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="fw-bold">Gender:</span>
+                            <span>{{ current_user.patient.gender }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span class="fw-bold">Blood Type:</span>
+                            <span>{{ current_user.patient.blood_type or 'Not specified' }}</span>
+                        </li>
+                    {% endif %}
+                </ul>
+                
+                <div class="d-grid gap-2 mt-3">
+                    <a href="#" class="btn btn-outline-primary">Edit Profile</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="#" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-plus me-2"></i> Book New Appointment
+                    </a>
+                    <a href="#" class="btn btn-outline-primary">
+                        <i class="fas fa-comment-medical me-2"></i> Message a Doctor
+                    </a>
+                    <a href="#" class="btn btn-outline-primary">
+                        <i class="fas fa-file-upload me-2"></i> Upload Medical Document
+                    </a>
+                    <a href="#" class="btn btn-outline-primary">
+                        <i class="fas fa-pills me-2"></i> Medication Reminder
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

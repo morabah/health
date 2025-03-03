@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Phone - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Verify Your Phone Number</h2>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> A verification code has been sent to your phone number. Please enter it below to verify your account.
+                </div>
+                
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        {{ form.verification_code.label(class="form-label") }}
+                        {{ form.verification_code(class="form-control" + (" is-invalid" if form.verification_code.errors else ""), placeholder="Enter 6-digit code") }}
+                        {% for error in form.verification_code.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <div class="text-center">
+                    <p>Didn't receive the code?</p>
+                    <form method="POST" action="{{ request.url }}">
+                        {{ resend_form.hidden_tag() }}
+                        {{ resend_form.submit(class="btn btn-outline-secondary") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

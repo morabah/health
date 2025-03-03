@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Email - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Email Verification</h2>
+            </div>
+            <div class="card-body text-center">
+                {% if verified %}
+                    <div class="mb-4">
+                        <i class="fas fa-check-circle fa-5x text-success"></i>
+                    </div>
+                    <h3>Email Successfully Verified!</h3>
+                    <p class="lead">Thank you for verifying your email address. Your account is now one step closer to being fully activated.</p>
+                    
+                    {% if not user.phone_verified %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> Please verify your phone number to complete the verification process.
+                        </div>
+                        <a href="{{ url_for('auth.verify_phone', user_id=user.id) }}" class="btn btn-primary">Verify Phone Number</a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Proceed to Login</a>
+                    {% endif %}
+                {% else %}
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-5x text-danger"></i>
+                    </div>
+                    <h3>Verification Failed</h3>
+                    <p class="lead">We couldn't verify your email address. The verification link may have expired or is invalid.</p>
+                    
+                    <div class="mt-4">
+                        <form method="POST" action="{{ url_for('auth.resend_verification_email') }}">
+                            <input type="hidden" name="email" value="{{ email }}">
+                            <button type="submit" class="btn btn-primary">Resend Verification Email</button>
+                        </form>
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('main.index') }}">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

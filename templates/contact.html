@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Contact - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="text-center mb-4">Contact Us</h1>
+        
+        <div class="row mb-5">
+            <div class="col-md-4">
+                <div class="card h-100 text-center shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-map-marker-alt fa-3x text-primary mb-3"></i>
+                        <h4>Address</h4>
+                        <p>123 Health Street<br>Algiers, 16000<br>Algeria</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-phone fa-3x text-primary mb-3"></i>
+                        <h4>Phone</h4>
+                        <p>+213 123 456 789<br>+213 987 654 321</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center shadow-sm">
+                    <div class="card-body">
+                        <i class="fas fa-envelope fa-3x text-primary mb-3"></i>
+                        <h4>Email</h4>
+                        <p>info@healthappointment.dz<br>support@healthappointment.dz</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title">Send us a Message</h2>
+                <form>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Your Name</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Your Email</label>
+                            <input type="email" class="form-control" id="email" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" rows="5" required></textarea>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Send Message</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title">Our Location</h2>
+                <div class="ratio ratio-16x9">
+                    <!-- Placeholder for a map - in a real application, you would embed a Google Map or similar -->
+                    <div class="bg-light d-flex align-items-center justify-content-center">
+                        <p class="text-muted">Map Placeholder - In a real application, an interactive map would be displayed here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow-sm">
+            <div class="card-body">
+                <h2 class="card-title">Frequently Asked Questions</h2>
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="headingOne">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                How do I register as a patient?
+                            </button>
+                        </h3>
+                        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                To register as a patient, click on the "Register" button in the navigation menu, then select "Patient Registration". Fill out the required information, verify your email and phone number, and you're all set!
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                How do I register as a doctor?
+                            </button>
+                        </h3>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                To register as a doctor, click on the "Register" button, then select "Doctor Registration". You'll need to provide your professional credentials and upload verification documents. After verification by our team, your account will be activated.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h3 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                How long does doctor verification take?
+                            </button>
+                        </h3>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body">
+                                Doctor verification typically takes 1-3 business days. We carefully review all credentials to ensure the highest standards of care for our patients.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

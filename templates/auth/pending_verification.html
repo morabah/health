@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Verification Pending - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">Verification Status</h2>
+            </div>
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-4x text-warning mb-3"></i>
+                <h3>Your account is pending verification</h3>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5>Email Verification</h5>
+                                {% if user.email_verified %}
+                                    <div class="text-success">
+                                        <i class="fas fa-check-circle me-2"></i> Verified
+                                    </div>
+                                {% else %}
+                                    <div class="text-danger">
+                                        <i class="fas fa-times-circle me-2"></i> Not Verified
+                                    </div>
+                                    <p class="mt-2">Please check your email for a verification link.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5>Phone Verification</h5>
+                                {% if user.phone_verified %}
+                                    <div class="text-success">
+                                        <i class="fas fa-check-circle me-2"></i> Verified
+                                    </div>
+                                {% else %}
+                                    <div class="text-danger">
+                                        <i class="fas fa-times-circle me-2"></i> Not Verified
+                                    </div>
+                                    <p class="mt-2">
+                                        <a href="{{ url_for('auth.verify_phone', user_id=user.id) }}" class="btn btn-sm btn-outline-primary">
+                                            Verify Phone
+                                        </a>
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if user.user_type.value == 'doctor' %}
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5>Credential Verification</h5>
+                            {% if user.doctor.verification_status.value == 'pending' %}
+                                <div class="text-warning">
+                                    <i class="fas fa-hourglass-half me-2"></i> Pending Review
+                                </div>
+                                <p class="mt-2">Your credentials are being reviewed by our team. This process typically takes 1-3 business days.</p>
+                            {% elif user.doctor.verification_status.value == 'verified' %}
+                                <div class="text-success">
+                                    <i class="fas fa-check-circle me-2"></i> Verified
+                                </div>
+                            {% else %}
+                                <div class="text-danger">
+                                    <i class="fas fa-times-circle me-2"></i> Rejected
+                                </div>
+                                <p class="mt-2">{{ user.doctor.verification_notes or 'Please contact support for more information.' }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <p>Once all verifications are complete, your account will be activated.</p>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

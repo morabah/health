@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Doctor Verification - Health Appointment System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h1>Doctor Verification</h1>
+        <p class="lead">Review and verify doctor credentials to activate their accounts.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Pending Verification Requests</h4>
+                <div>
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-light">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if pending_doctors %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Specialty</th>
+                                    <th>License #</th>
+                                    <th>Submission Date</th>
+                                    <th>Documents</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doctor in pending_doctors %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary text-white rounded-circle me-2 d-flex align-items-center justify-content-center">
+                                                <i class="fas fa-user-md"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}</div>
+                                                <small class="text-muted">{{ doctor.user.email }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ doctor.specialty }}</td>
+                                    <td>{{ doctor.license_number }}</td>
+                                    <td>{{ doctor.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            {% for doc in doctor.documents %}
+                                                <a href="{{ url_for('admin.view_document', document_id=doc.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                    <i class="fas fa-file-medical me-1"></i> {{ doc.document_type }}
+                                                </a>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#approveModal{{ doctor.id }}">
+                                                <i class="fas fa-check me-1"></i> Approve
+                                            </button>
+                                            <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ doctor.id }}">
+                                                <i class="fas fa-times me-1"></i> Reject
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Approve Modal -->
+                                <div class="modal fade" id="approveModal{{ doctor.id }}" tabindex="-1" aria-labelledby="approveModalLabel{{ doctor.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-success text-white">
+                                                <h5 class="modal-title" id="approveModalLabel{{ doctor.id }}">Approve Doctor</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <form action="{{ url_for('admin.verify_doctor', doctor_id=doctor.id) }}" method="POST">
+                                                <input type="hidden" name="action" value="approve">
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to approve Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}?</p>
+                                                    <p>This will activate their account and allow them to start using the system.</p>
+                                                    <div class="mb-3">
+                                                        <label for="notes{{ doctor.id }}" class="form-label">Notes (Optional)</label>
+                                                        <textarea class="form-control" id="notes{{ doctor.id }}" name="notes" rows="3" placeholder="Add any notes about this verification"></textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-success">Approve Doctor</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Reject Modal -->
+                                <div class="modal fade" id="rejectModal{{ doctor.id }}" tabindex="-1" aria-labelledby="rejectModalLabel{{ doctor.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-danger text-white">
+                                                <h5 class="modal-title" id="rejectModalLabel{{ doctor.id }}">Reject Doctor</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <form action="{{ url_for('admin.verify_doctor', doctor_id=doctor.id) }}" method="POST">
+                                                <input type="hidden" name="action" value="reject">
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to reject Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}?</p>
+                                                    <div class="mb-3">
+                                                        <label for="rejection_reason{{ doctor.id }}" class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
+                                                        <textarea class="form-control" id="rejection_reason{{ doctor.id }}" name="notes" rows="3" placeholder="Provide a reason for rejection" required></textarea>
+                                                        <div class="form-text">This will be sent to the doctor.</div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger">Reject Doctor</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-user-md fa-4x text-muted mb-3"></i>
+                        <h5>No pending verification requests</h5>
+                        <p>All doctor verification requests have been processed.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">Approved Doctors</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if approved_doctors %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Specialty</th>
+                                            <th>Approved Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for doctor in approved_doctors %}
+                                        <tr>
+                                            <td>Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}</td>
+                                            <td>{{ doctor.specialty }}</td>
+                                            <td>{{ doctor.updated_at.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p>No approved doctors yet.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">Rejected Doctors</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if rejected_doctors %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Specialty</th>
+                                            <th>Rejected Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for doctor in rejected_doctors %}
+                                        <tr>
+                                            <td>Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}</td>
+                                            <td>{{ doctor.specialty }}</td>
+                                            <td>{{ doctor.updated_at.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <p>No rejected doctors.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
