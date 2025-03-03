@@ -36,7 +36,7 @@
                         ${{ doctor.consultation_fee or '0' }} per consultation
                     </div>
                     
-                    <a href="#" class="btn btn-primary btn-lg mb-2 w-100">Book Appointment</a>
+                    <a href="{{ url_for('main.book_appointment', doctor_id=doctor.id) }}" class="btn btn-primary btn-lg mb-2 w-100">Book Appointment</a>
                     <a href="{{ url_for('main.find_doctors') }}" class="btn btn-outline-secondary w-100">Back to Doctors</a>
                 </div>
             </div>
@@ -63,11 +63,12 @@
                 <div class="card-body">
                     {% if availabilities %}
                         <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
+                            <table class="table table-hover">
+                                <thead class="table-light">
                                     <tr>
                                         <th>Day</th>
-                                        <th>Hours</th>
+                                        <th>Time Slot</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -80,16 +81,23 @@
                                         {% endfor %}
                                         
                                         {% if day_slots %}
-                                            <tr>
-                                                <td>{{ days[day_index] }}</td>
-                                                <td>
-                                                    {% for slot in day_slots %}
-                                                        <span class="badge bg-success me-1">
-                                                            {{ slot.start_time.strftime('%H:%M') }} - {{ slot.end_time.strftime('%H:%M') }}
+                                            {% for slot in day_slots %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="fw-bold">{{ days[day_index] }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">
+                                                            {{ slot.start_time.strftime('%I:%M %p') }} - {{ slot.end_time.strftime('%I:%M %p') }}
                                                         </span>
-                                                    {% endfor %}
-                                                </td>
-                                            </tr>
+                                                    </td>
+                                                    <td>
+                                                        <a href="{{ url_for('main.book_appointment', doctor_id=doctor.id, date=days[day_index], time=slot.start_time.strftime('%H:%M')) }}" class="btn btn-sm btn-success">
+                                                            <i class="fas fa-calendar-check me-1"></i> Book This Slot
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
                                         {% endif %}
                                     {% endfor %}
                                 </tbody>
@@ -97,7 +105,7 @@
                         </div>
                     {% else %}
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i> This doctor has not set any availability yet.
+                            <i class="fas fa-info-circle me-2"></i> This doctor has not set any availability yet.
                         </div>
                     {% endif %}
                 </div>
@@ -105,4 +113,27 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click event for the main Book Appointment button
+        const mainBookBtn = document.querySelector('.btn-primary.btn-lg');
+        if (mainBookBtn) {
+            mainBookBtn.addEventListener('click', function(e) {
+                console.log('Main Book Appointment button clicked');
+            });
+        }
+        
+        // Add click events for individual slot booking buttons
+        const slotButtons = document.querySelectorAll('.btn-success');
+        slotButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                console.log('Slot booking button clicked: ' + this.getAttribute('href'));
+            });
+        });
+    });
+</script>
 {% endblock %}

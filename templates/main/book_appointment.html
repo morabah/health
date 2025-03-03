@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Book Appointment with Dr. {{ doctor_user.last_name }}{% endblock %}
+{% block title %}Book Appointment with Dr. {{ doctor.user.last_name }}{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -16,18 +16,29 @@
         background-color: #cfe2ff;
         border-color: #9ec5fe;
     }
+    .time-slot.selected::before {
+        content: "\2713";
+        font-size: 1.5rem;
+        margin-right: 0.5rem;
+        color: #007bff;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-5">
+    <div class="alert alert-info mb-4">
+        <h4 class="alert-heading"><i class="fas fa-calendar-plus me-2"></i>Appointment Booking</h4>
+        <p class="mb-0">You are now booking an appointment with Dr. {{ doctor.user.last_name }}. Please select a date and time below.</p>
+    </div>
+    
     <div class="row mb-4">
         <div class="col-md-12">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
                     <li class="breadcrumb-item"><a href="{{ url_for('main.find_doctors') }}">Find Doctors</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('main.doctor_profile', doctor_id=doctor.id) }}">Dr. {{ doctor_user.last_name }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.doctor_profile', doctor_id=doctor.id) }}">Dr. {{ doctor.user.last_name }}</a></li>
                     <li class="breadcrumb-item active">Book Appointment</li>
                 </ol>
             </nav>
@@ -44,7 +55,7 @@
                         <img src="{{ url_for('static', filename='img/default-profile.png') }}" alt="Default Profile" class="img-fluid rounded-circle mb-3" style="max-width: 150px; max-height: 150px;">
                     {% endif %}
                     
-                    <h4>Dr. {{ doctor_user.first_name }} {{ doctor_user.last_name }}</h4>
+                    <h4>Dr. {{ doctor.user.first_name }} {{ doctor.user.last_name }}</h4>
                     <p class="text-muted mb-2">{{ doctor.specialty }}</p>
                     
                     <div class="mb-3">
@@ -71,7 +82,7 @@
                     <h5 class="card-title mb-0">Book an Appointment</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" id="appointmentForm">
+                    <form method="POST" id="appointmentForm" action="{{ url_for('main.book_appointment', doctor_id=doctor.id) }}">
                         {{ form.hidden_tag() }}
                         
                         <div class="mb-3">
@@ -91,10 +102,10 @@
                             <label for="time_slot" class="form-label">Select Time Slot</label>
                             <div id="timeSlotContainer" class="mb-2">
                                 <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> Please select a date to view available time slots.
+                                    <i class="fas fa-info-circle"></i> Please select a date to see available time slots
                                 </div>
                             </div>
-                            {{ form.time_slot(class="form-control d-none", id="time_slot") }}
+                            {{ form.time_slot(class="form-select", id="time_slot") }}
                             {% if form.time_slot.errors %}
                                 <div class="text-danger">
                                     {% for error in form.time_slot.errors %}
@@ -147,72 +158,57 @@
         const timeSlotContainer = document.getElementById('timeSlotContainer');
         const timeSlotInput = document.getElementById('time_slot');
         const doctorId = {{ doctor.id }};
+        const form = document.getElementById('appointmentForm');
         
-        // Load available slots when date changes
+        // Load available time slots when date changes
         dateInput.addEventListener('change', function() {
             const selectedDate = this.value;
-            if (!selectedDate) return;
+            console.log('Selected date:', selectedDate);
             
-            // Show loading indicator
-            timeSlotContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading available slots...</p></div>';
+            if (!selectedDate) {
+                timeSlotContainer.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Please select a date to see available time slots</div>';
+                return;
+            }
             
-            // Create form data
-            const formData = new FormData();
-            formData.append('date', selectedDate);
+            // Show loading message
+            timeSlotContainer.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Loading available time slots...</div>';
             
-            // Fetch available slots from server
-            fetch(`/get-available-slots/${doctorId}`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    timeSlotContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
-                    return;
-                }
-                
-                if (data.slots && data.slots.length > 0) {
-                    // Create time slot buttons
-                    let html = '<div class="row g-2">';
-                    data.slots.forEach(slot => {
-                        html += `
-                            <div class="col-md-4 col-6">
-                                <div class="card time-slot mb-2" data-slot="${slot}">
-                                    <div class="card-body py-2 px-3 text-center">
-                                        <i class="far fa-clock me-1"></i> ${slot}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    html += '</div>';
-                    timeSlotContainer.innerHTML = html;
+            // Make AJAX request to get available slots
+            fetch(`/get-available-slots/${doctorId}?date=${selectedDate}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Available slots:', data);
                     
-                    // Add click event to time slots
-                    document.querySelectorAll('.time-slot').forEach(slot => {
-                        slot.addEventListener('click', function() {
-                            // Remove selected class from all slots
-                            document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
-                            
-                            // Add selected class to clicked slot
-                            this.classList.add('selected');
-                            
-                            // Update hidden input value
-                            timeSlotInput.value = this.dataset.slot;
+                    if (data.success && data.slots && data.slots.length > 0) {
+                        // Create time slot options
+                        let html = '';
+                        data.slots.forEach(slot => {
+                            html += `<option value="${slot[0]}">${slot[1]}</option>`;
                         });
-                    });
-                } else {
-                    timeSlotContainer.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No available slots for this date. Please select another date.</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                timeSlotContainer.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> An error occurred while loading time slots. Please try again.</div>';
-            });
+                        
+                        // Clear the existing options and add new ones
+                        timeSlotInput.innerHTML = '<option value="">Select a time slot</option>' + html;
+                        
+                        // Hide the info message
+                        timeSlotContainer.innerHTML = '<div class="alert alert-success"><i class="fas fa-check-circle"></i> Available time slots loaded. Please select one from the dropdown below.</div>';
+                        
+                        // Log the available options for debugging
+                        console.log('Time slot options:', timeSlotInput.innerHTML);
+                    } else {
+                        timeSlotContainer.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No available slots for this date. Please select another date.</div>';
+                        timeSlotInput.innerHTML = '<option value="">Select a time slot</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching available slots:', error);
+                    timeSlotContainer.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> Error loading time slots. Please try again.</div>';
+                    timeSlotInput.innerHTML = '<option value="">Select a time slot</option>';
+                });
         });
         
         // Trigger change event on page load to load slots for default date
@@ -220,12 +216,29 @@
         dateInput.dispatchEvent(event);
         
         // Form validation
-        document.getElementById('appointmentForm').addEventListener('submit', function(e) {
-            if (!timeSlotInput.value) {
+        form.addEventListener('submit', function(e) {
+            console.log('Form submitted');
+            
+            // Check if time slot is selected
+            if (!timeSlotInput.value || timeSlotInput.value === '') {
                 e.preventDefault();
+                console.log('No time slot selected');
                 alert('Please select a time slot');
+                timeSlotInput.focus();
                 return false;
             }
+            
+            // Check if reason is provided
+            const reasonInput = document.getElementById('reason');
+            if (!reasonInput.value.trim()) {
+                e.preventDefault();
+                console.log('No reason provided');
+                alert('Please provide a reason for your visit');
+                reasonInput.focus();
+                return false;
+            }
+            
+            console.log('Form valid, submitting with time slot: ' + timeSlotInput.value);
             return true;
         });
     });

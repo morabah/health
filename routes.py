@@ -1,17 +1,21 @@
-from datetime import datetime, time
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, abort
-from flask_login import login_user, current_user, logout_user, login_required
-from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, User, Patient, Doctor, UserType, VerificationStatus, VerificationDocument, DoctorAvailability, Appointment, AppointmentStatus, Notification
-from forms import (PatientRegistrationForm, DoctorRegistrationForm, LoginForm, 
-                  PhoneVerificationForm, ResendVerificationForm, ForgotPasswordForm, 
-                  ResetPasswordForm, DoctorProfileForm, DoctorAvailabilityForm, DoctorSearchForm,
-                  AppointmentBookingForm, AppointmentCancellationForm, AppointmentRescheduleForm)
-from utils import (generate_verification_code, generate_verification_token, 
-                  send_verification_email, send_verification_sms, 
-                  send_password_reset_email, save_verification_document, save_profile_picture,
-                  create_notification, get_available_slots, format_time_slot, parse_time_slot)
+from datetime import datetime, time, timedelta
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, abort
+from flask_login import login_required, current_user
+from sqlalchemy import or_, and_, func, desc
 import os
+import secrets
+from PIL import Image
+import pytz
+import json
+from werkzeug.utils import secure_filename
+
+from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus
+from models import db
+from forms import (
+    DoctorProfileForm, DoctorAvailabilityForm, AppointmentBookingForm,
+    DoctorSearchForm, AppointmentCancellationForm, AppointmentRescheduleForm
+)
+from utils import create_notification
 
 # Create blueprints for different sections of the app
 main = Blueprint('main', __name__)
@@ -642,116 +646,138 @@ def verify_doctor(doctor_id, action):
 @login_required
 def book_appointment(doctor_id):
     """Book an appointment with a doctor."""
+    # Only patients can book appointments
+    current_app.logger.debug(f"book_appointment called for doctor_id={doctor_id}")
+    current_app.logger.debug(f"User type: {current_user.user_type}")
+    
     if current_user.user_type != UserType.PATIENT:
         flash('Only patients can book appointments.', 'danger')
         return redirect(url_for('main.index'))
     
     doctor = Doctor.query.get_or_404(doctor_id)
-    patient = Patient.query.filter_by(user_id=current_user.id).first()
-    
-    if not patient:
-        flash('Patient profile not found.', 'danger')
-        return redirect(url_for('main.index'))
-    
-    # Check if doctor is verified
-    if doctor.verification_status != VerificationStatus.VERIFIED:
-        flash('This doctor is not available for appointments.', 'danger')
-        return redirect(url_for('main.find_doctors'))
+    patient = Patient.query.filter_by(user_id=current_user.id).first_or_404()
     
     form = AppointmentBookingForm()
     
-    # For GET requests, initialize the form
-    if request.method == 'GET':
-        # Set default date to tomorrow
-        tomorrow = datetime.now().date() + datetime.timedelta(days=1)
-        form.appointment_date.data = tomorrow
+    if request.method == 'POST':
+        # Get form data
+        appointment_date_str = request.form.get('appointment_date')
+        time_slot_str = request.form.get('time_slot')
+        reason = request.form.get('reason')
+        notes = request.form.get('notes', '')
+        
+        current_app.logger.debug(f"Form data: date={appointment_date_str}, time_slot={time_slot_str}, reason={reason}")
+        
+        if not appointment_date_str or not time_slot_str or not reason:
+            flash('Please fill all required fields.', 'danger')
+            return redirect(url_for('main.book_appointment', doctor_id=doctor_id))
+        
+        try:
+            # Parse the appointment date
+            appointment_date = datetime.strptime(appointment_date_str, '%Y-%m-%d').date()
+            
+            # Parse the time slot
+            start_time, end_time = parse_time_slot(time_slot_str)
+            
+            # Check if the slot is still available
+            available_slots = get_available_slots(doctor_id, appointment_date)
+            available_times = [format_time_slot(slot) for slot in available_slots]
+            
+            if time_slot_str not in available_times:
+                flash('The selected time slot is no longer available. Please choose another.', 'danger')
+                return redirect(url_for('main.book_appointment', doctor_id=doctor_id))
+            
+            # Create a new appointment
+            appointment = Appointment(
+                patient_id=patient.id,
+                doctor_id=doctor_id,
+                appointment_date=appointment_date,
+                start_time=start_time,
+                end_time=end_time,
+                reason=reason,
+                notes=notes,
+                status=AppointmentStatus.PENDING
+            )
+            
+            # Add to database and commit
+            db.session.add(appointment)
+            db.session.commit()
+            
+            # Create notifications
+            doctor_notification = Notification(
+                user_id=doctor.user_id,
+                title="New Appointment Request",
+                message=f"New appointment request from {patient.user.first_name} {patient.user.last_name} for {appointment_date.strftime('%Y-%m-%d')} at {start_time.strftime('%H:%M')}"
+            )
+            db.session.add(doctor_notification)
+            
+            patient_notification = Notification(
+                user_id=current_user.id,
+                title="Appointment Requested",
+                message=f"Your appointment with Dr. {doctor.user.first_name} {doctor.user.last_name} for {appointment_date.strftime('%Y-%m-%d')} at {start_time.strftime('%H:%M')} has been requested. Please wait for confirmation."
+            )
+            db.session.add(patient_notification)
+            db.session.commit()
+            
+            flash('Appointment booked successfully! You will be notified when the doctor confirms it.', 'success')
+            return redirect(url_for('patient.appointments'))
+            
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error booking appointment: {str(e)}")
+            flash(f"There was an error booking your appointment: {str(e)}", 'danger')
     
-    # For POST requests, process the form
-    if form.validate_on_submit():
-        # Parse the selected time slot
-        start_time, end_time = parse_time_slot(form.time_slot.data)
-        
-        # Check if the slot is still available (prevent double booking)
-        appointment_date = form.appointment_date.data
-        available_slots = get_available_slots(doctor.id, appointment_date)
-        formatted_available_slots = [format_time_slot(slot) for slot in available_slots]
-        
-        if form.time_slot.data not in formatted_available_slots:
-            flash('Sorry, this time slot is no longer available. Please select another.', 'danger')
-            return redirect(url_for('main.book_appointment', doctor_id=doctor.id))
-        
-        # Create the appointment
-        appointment = Appointment(
-            patient_id=patient.id,
-            doctor_id=doctor.id,
-            appointment_date=appointment_date,
-            start_time=start_time,
-            end_time=end_time,
-            reason=form.reason.data,
-            notes=form.notes.data,
-            status=AppointmentStatus.CONFIRMED
-        )
-        
-        db.session.add(appointment)
-        db.session.commit()
-        
-        # Create notifications for both patient and doctor
-        patient_message = f"Your appointment with Dr. {doctor.user.last_name} on {appointment_date.strftime('%d/%m/%Y')} at {start_time.strftime('%H:%M')} has been confirmed."
-        create_notification(current_user.id, "Appointment Confirmed", patient_message)
-        
-        doctor_message = f"New appointment with {current_user.first_name} {current_user.last_name} on {appointment_date.strftime('%d/%m/%Y')} at {start_time.strftime('%H:%M')}."
-        create_notification(doctor.user_id, "New Appointment", doctor_message)
-        
-        flash('Appointment booked successfully!', 'success')
-        return redirect(url_for('patient.appointments'))
-    
-    # Get doctor's user information
-    doctor_user = User.query.get(doctor.user_id)
-    
-    return render_template('main/book_appointment.html', form=form, doctor=doctor, doctor_user=doctor_user)
+    return render_template('main/book_appointment.html', 
+                          doctor=doctor, 
+                          form=form,
+                          current_date=datetime.now().strftime('%Y-%m-%d'))
 
-@main.route('/get-available-slots/<int:doctor_id>', methods=['POST'])
+@main.route('/get-available-slots/<int:doctor_id>', methods=['GET', 'POST'])
 @login_required
-def get_available_slots_api(doctor_id):
-    """API endpoint to get available slots for a specific date."""
-    if current_user.user_type != UserType.PATIENT:
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    # Get date from request
-    date_str = request.form.get('date')
-    if not date_str:
-        return jsonify({'error': 'Date is required'}), 400
-    
+def get_available_slots_route(doctor_id):
+    """Get available appointment slots for a doctor on a specific date."""
     try:
-        # Parse date string to date object
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        date_str = request.args.get('date')
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         # Get available slots
-        available_slots = get_available_slots(doctor_id, date_obj)
+        available_slots = get_available_slots(doctor_id, selected_date)
         
-        # Format slots for display
-        formatted_slots = [format_time_slot(slot) for slot in available_slots]
+        # Format the slots for display
+        formatted_slots = [(format_time_slot(slot), format_time_slot(slot)) for slot in available_slots]
         
-        return jsonify({'slots': formatted_slots})
-    
+        return jsonify({
+            'success': True,
+            'slots': formatted_slots
+        })
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        current_app.logger.error(f"Error in get_available_slots_route: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @patient.route('/appointments')
 @login_required
 def appointments():
     """View all patient appointments."""
+    print(f"DEBUG: appointments route called for user: {current_user.id}")
+    print(f"DEBUG: User type: {current_user.user_type}")
+    
     if current_user.user_type != UserType.PATIENT:
+        print(f"DEBUG: User is not a patient: {current_user.user_type}")
         flash('Access denied.', 'danger')
         return redirect(url_for('main.index'))
     
     patient = Patient.query.filter_by(user_id=current_user.id).first()
     if not patient:
+        print(f"DEBUG: Patient profile not found for user: {current_user.id}")
         flash('Patient profile not found.', 'danger')
         return redirect(url_for('main.index'))
     
     # Get all appointments for this patient
     appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_date.desc()).all()
+    print(f"DEBUG: Found {len(appointments)} appointments for patient: {patient.id}")
     
     # Group appointments by status
     upcoming_appointments = []
@@ -761,12 +787,15 @@ def appointments():
     today = datetime.now().date()
     
     for appointment in appointments:
+        print(f"DEBUG: Processing appointment: {appointment.id}, date: {appointment.appointment_date}, status: {appointment.status}")
         if appointment.status == AppointmentStatus.CANCELLED:
             cancelled_appointments.append(appointment)
         elif appointment.appointment_date < today or (appointment.appointment_date == today and appointment.end_time < datetime.now().time()):
             past_appointments.append(appointment)
         else:
             upcoming_appointments.append(appointment)
+    
+    print(f"DEBUG: Upcoming: {len(upcoming_appointments)}, Past: {len(past_appointments)}, Cancelled: {len(cancelled_appointments)}")
     
     return render_template('patient/appointments.html', 
                           upcoming_appointments=upcoming_appointments,
@@ -811,10 +840,21 @@ def cancel_appointment(appointment_id):
         doctor_user = User.query.get(doctor.user_id)
         
         patient_message = f"Your appointment with Dr. {doctor_user.last_name} on {appointment.appointment_date.strftime('%d/%m/%Y')} has been cancelled."
-        create_notification(current_user.id, "Appointment Cancelled", patient_message)
+        patient_notification = Notification(
+            user_id=current_user.id,
+            title="Appointment Cancelled",
+            message=patient_message
+        )
+        db.session.add(patient_notification)
         
         doctor_message = f"Appointment with {current_user.first_name} {current_user.last_name} on {appointment.appointment_date.strftime('%d/%m/%Y')} at {appointment.start_time.strftime('%H:%M')} has been cancelled."
-        create_notification(doctor_user.id, "Appointment Cancelled", doctor_message)
+        doctor_notification = Notification(
+            user_id=doctor_user.id,
+            title="Appointment Cancelled",
+            message=doctor_message
+        )
+        db.session.add(doctor_notification)
+        db.session.commit()
         
         flash('Appointment cancelled successfully.', 'success')
         return redirect(url_for('patient.appointments'))
@@ -915,3 +955,60 @@ def unread_notifications_count():
     """Get the count of unread notifications for the current user."""
     count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
     return jsonify({'count': count})
+
+# Utility functions
+def format_time_slot(time_obj):
+    """Format a time object as a string like '09:00 - 09:30'."""
+    today = datetime.now().date()
+    end_time = (datetime.combine(today, time_obj) + timedelta(minutes=30)).time()
+    return f"{time_obj.strftime('%H:%M')} - {end_time.strftime('%H:%M')}"
+
+def parse_time_slot(time_slot_str):
+    """Parse a time slot string like '09:00 - 09:30' into start_time and end_time."""
+    start_str, end_str = time_slot_str.split(' - ')
+    start_time = datetime.strptime(start_str, '%H:%M').time()
+    end_time = datetime.strptime(end_str, '%H:%M').time()
+    return start_time, end_time
+
+def get_available_slots(doctor_id, selected_date):
+    """Get available appointment slots for a doctor on a specific date."""
+    # Get the day of week (0=Monday, 6=Sunday)
+    day_of_week = selected_date.weekday()
+    
+    # Get the doctor's availability for this day
+    availabilities = DoctorAvailability.query.filter_by(
+        doctor_id=doctor_id,
+        day_of_week=day_of_week,
+        is_available=True
+    ).all()
+    
+    if not availabilities:
+        return []
+    
+    # Create time slots every 30 minutes within the doctor's availability
+    all_slots = []
+    for availability in availabilities:
+        current_time = availability.start_time
+        end_time = availability.end_time
+        
+        while current_time < end_time:
+            # Add the slot to the list
+            all_slots.append(current_time)
+            
+            # Move to the next slot (30 minutes later)
+            current_time_dt = datetime.combine(selected_date, current_time)
+            current_time_dt += timedelta(minutes=30)
+            current_time = current_time_dt.time()
+    
+    # Get all booked appointments for this doctor on this date
+    booked_appointments = Appointment.query.filter(
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_date == selected_date,
+        Appointment.status != AppointmentStatus.CANCELLED
+    ).all()
+    
+    # Remove booked slots
+    booked_slots = [appointment.start_time for appointment in booked_appointments]
+    available_slots = [slot for slot in all_slots if slot not in booked_slots]
+    
+    return sorted(available_slots)
