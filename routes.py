@@ -373,7 +373,33 @@ def dashboard():
     if current_user.user_type != UserType.PATIENT:
         abort(403)
     
-    return render_template('patient/dashboard.html')
+    patient = Patient.query.filter_by(user_id=current_user.id).first()
+    if not patient:
+        flash('Patient profile not found.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    # Get today's date
+    today = datetime.now().date()
+    
+    # Get upcoming appointments
+    upcoming_appointments = Appointment.query.filter(
+        Appointment.patient_id == patient.id,
+        Appointment.appointment_date >= today,
+        Appointment.status != AppointmentStatus.CANCELLED
+    ).order_by(Appointment.appointment_date, Appointment.start_time).all()
+    
+    # Get unread notifications count
+    unread_notifications = Notification.query.filter_by(
+        user_id=current_user.id, 
+        is_read=False
+    ).count()
+    
+    return render_template(
+        'patient/dashboard.html',
+        patient=patient,
+        upcoming_appointments=upcoming_appointments,
+        unread_notifications=unread_notifications
+    )
 
 # Doctor routes
 @doctor.route('/dashboard')
