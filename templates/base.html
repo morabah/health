@@ -33,16 +33,38 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.contact') }}">Contact</a>
                     </li>
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.find_doctors') }}">Find Doctors</a>
+                    </li>
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        <!-- Notifications -->
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('main.notifications') }}">
+                                <i class="fas fa-bell"></i>
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" style="display: none;">
+                                    <span class="notification-count">0</span>
+                                    <span class="visually-hidden">unread notifications</span>
+                                </span>
+                            </a>
+                        </li>
+                        
                         {% if current_user.user_type.value == 'patient' %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('patient.dashboard') }}">Dashboard</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('patient.appointments') }}">My Appointments</a>
+                            </li>
                         {% elif current_user.user_type.value == 'doctor' %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('doctor.dashboard') }}">Dashboard</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('doctor.doctor_appointments') }}">My Appointments</a>
                             </li>
                         {% endif %}
                         <li class="nav-item dropdown">
@@ -125,5 +147,35 @@
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
+    
+    {% if current_user.is_authenticated %}
+    <script>
+        // Check for unread notifications
+        function checkNotifications() {
+            fetch('{{ url_for("main.unread_notifications_count") }}')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.querySelector('.notification-badge');
+                    const count = document.querySelector('.notification-count');
+                    
+                    if (data.count > 0) {
+                        count.textContent = data.count;
+                        badge.style.display = 'block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error checking notifications:', error));
+        }
+        
+        // Check on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkNotifications();
+            
+            // Check every 30 seconds
+            setInterval(checkNotifications, 30000);
+        });
+    </script>
+    {% endif %}
 </body>
 </html>

@@ -17,13 +17,13 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted">Upcoming Appointments</h6>
-                        <h2 class="mb-0">0</h2>
+                        <h2 class="mb-0">{{ upcoming_appointments|default(0) }}</h2>
                     </div>
                     <div class="bg-primary bg-gradient text-white rounded-circle p-3">
                         <i class="fas fa-calendar-check fa-2x"></i>
                     </div>
                 </div>
-                <a href="#" class="btn btn-sm btn-outline-primary mt-3">View All</a>
+                <a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-outline-primary mt-3">View All</a>
             </div>
         </div>
     </div>
@@ -64,14 +64,14 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted">Messages</h6>
-                        <h2 class="mb-0">0</h2>
+                        <h6 class="text-muted">Notifications</h6>
+                        <h2 class="mb-0">{{ unread_notifications|default(0) }}</h2>
                     </div>
                     <div class="bg-warning bg-gradient text-white rounded-circle p-3">
-                        <i class="fas fa-envelope fa-2x"></i>
+                        <i class="fas fa-bell fa-2x"></i>
                     </div>
                 </div>
-                <a href="#" class="btn btn-sm btn-outline-warning mt-3">View All</a>
+                <a href="{{ url_for('main.notifications') }}" class="btn btn-sm btn-outline-warning mt-3">View All</a>
             </div>
         </div>
     </div>
@@ -84,12 +84,50 @@
                 <h4 class="mb-0">Upcoming Appointments</h4>
             </div>
             <div class="card-body">
-                <div class="text-center py-5">
-                    <i class="fas fa-calendar-day fa-4x text-muted mb-3"></i>
-                    <h5>No upcoming appointments</h5>
-                    <p>Schedule your first appointment with a doctor.</p>
-                    <a href="#" class="btn btn-primary">Book Appointment</a>
-                </div>
+                {% if upcoming_appointments and upcoming_appointments|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Doctor</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in upcoming_appointments[:3] %}
+                                    <tr>
+                                        <td>{{ appointment.appointment_date.strftime('%d %b, %Y') }}</td>
+                                        <td>{{ appointment.start_time.strftime('%H:%M') }}</td>
+                                        <td>Dr. {{ appointment.doctor.user.last_name }}</td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ appointment.status.name }}</span>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('patient.cancel_appointment', appointment_id=appointment.id) }}" class="btn btn-sm btn-outline-danger">
+                                                Cancel
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if upcoming_appointments|length > 3 %}
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('patient.appointments') }}" class="btn btn-outline-primary">View All Appointments</a>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-day fa-4x text-muted mb-3"></i>
+                        <h5>No upcoming appointments</h5>
+                        <p>Schedule your first appointment with a doctor.</p>
+                        <a href="{{ url_for('main.find_doctors') }}" class="btn btn-primary">Find a Doctor</a>
+                    </div>
+                {% endif %}
             </div>
         </div>
         
@@ -158,17 +196,17 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="#" class="btn btn-outline-primary">
+                    <a href="{{ url_for('main.find_doctors') }}" class="btn btn-outline-primary">
                         <i class="fas fa-calendar-plus me-2"></i> Book New Appointment
                     </a>
-                    <a href="#" class="btn btn-outline-primary">
-                        <i class="fas fa-comment-medical me-2"></i> Message a Doctor
+                    <a href="{{ url_for('patient.appointments') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-check me-2"></i> Manage Appointments
+                    </a>
+                    <a href="{{ url_for('main.notifications') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-bell me-2"></i> View Notifications
                     </a>
                     <a href="#" class="btn btn-outline-primary">
                         <i class="fas fa-file-upload me-2"></i> Upload Medical Document
-                    </a>
-                    <a href="#" class="btn btn-outline-primary">
-                        <i class="fas fa-pills me-2"></i> Medication Reminder
                     </a>
                 </div>
             </div>

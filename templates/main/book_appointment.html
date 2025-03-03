@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Book Appointment with Dr. {{ doctor_user.last_name }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .time-slot {
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .time-slot:hover {
+        background-color: #e9ecef;
+    }
+    .time-slot.selected {
+        background-color: #cfe2ff;
+        border-color: #9ec5fe;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.find_doctors') }}">Find Doctors</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.doctor_profile', doctor_id=doctor.id) }}">Dr. {{ doctor_user.last_name }}</a></li>
+                    <li class="breadcrumb-item active">Book Appointment</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if doctor.profile_picture %}
+                        <img src="{{ url_for('static', filename=doctor.profile_picture) }}" alt="Profile Picture" class="img-fluid rounded-circle mb-3" style="max-width: 150px; max-height: 150px;">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='img/default-profile.png') }}" alt="Default Profile" class="img-fluid rounded-circle mb-3" style="max-width: 150px; max-height: 150px;">
+                    {% endif %}
+                    
+                    <h4>Dr. {{ doctor_user.first_name }} {{ doctor_user.last_name }}</h4>
+                    <p class="text-muted mb-2">{{ doctor.specialty }}</p>
+                    
+                    <div class="mb-3">
+                        <i class="fas fa-map-marker-alt text-danger"></i> 
+                        {{ doctor.location or 'Location not specified' }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <i class="fas fa-language text-primary"></i> 
+                        {{ doctor.languages or 'Languages not specified' }}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <i class="fas fa-money-bill-wave text-success"></i> 
+                        ${{ doctor.consultation_fee or '0' }} per consultation
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Book an Appointment</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="appointmentForm">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label for="appointment_date" class="form-label">Select Date</label>
+                            {{ form.appointment_date(class="form-control", id="appointment_date") }}
+                            {% if form.appointment_date.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.appointment_date.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Select a date to see available time slots</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="time_slot" class="form-label">Select Time Slot</label>
+                            <div id="timeSlotContainer" class="mb-2">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Please select a date to view available time slots.
+                                </div>
+                            </div>
+                            {{ form.time_slot(class="form-control d-none", id="time_slot") }}
+                            {% if form.time_slot.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.time_slot.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Visit</label>
+                            {{ form.reason(class="form-control", rows=3) }}
+                            {% if form.reason.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.reason.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Additional Notes (Optional)</label>
+                            {{ form.notes(class="form-control", rows=2) }}
+                            {% if form.notes.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.notes.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('appointment_date');
+        const timeSlotContainer = document.getElementById('timeSlotContainer');
+        const timeSlotInput = document.getElementById('time_slot');
+        const doctorId = {{ doctor.id }};
+        
+        // Load available slots when date changes
+        dateInput.addEventListener('change', function() {
+            const selectedDate = this.value;
+            if (!selectedDate) return;
+            
+            // Show loading indicator
+            timeSlotContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading available slots...</p></div>';
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('date', selectedDate);
+            
+            // Fetch available slots from server
+            fetch(`/get-available-slots/${doctorId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    timeSlotContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ${data.error}</div>`;
+                    return;
+                }
+                
+                if (data.slots && data.slots.length > 0) {
+                    // Create time slot buttons
+                    let html = '<div class="row g-2">';
+                    data.slots.forEach(slot => {
+                        html += `
+                            <div class="col-md-4 col-6">
+                                <div class="card time-slot mb-2" data-slot="${slot}">
+                                    <div class="card-body py-2 px-3 text-center">
+                                        <i class="far fa-clock me-1"></i> ${slot}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    timeSlotContainer.innerHTML = html;
+                    
+                    // Add click event to time slots
+                    document.querySelectorAll('.time-slot').forEach(slot => {
+                        slot.addEventListener('click', function() {
+                            // Remove selected class from all slots
+                            document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+                            
+                            // Add selected class to clicked slot
+                            this.classList.add('selected');
+                            
+                            // Update hidden input value
+                            timeSlotInput.value = this.dataset.slot;
+                        });
+                    });
+                } else {
+                    timeSlotContainer.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> No available slots for this date. Please select another date.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                timeSlotContainer.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> An error occurred while loading time slots. Please try again.</div>';
+            });
+        });
+        
+        // Trigger change event on page load to load slots for default date
+        const event = new Event('change');
+        dateInput.dispatchEvent(event);
+        
+        // Form validation
+        document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+            if (!timeSlotInput.value) {
+                e.preventDefault();
+                alert('Please select a time slot');
+                return false;
+            }
+            return true;
+        });
+    });
+</script>
+{% endblock %}

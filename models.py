@@ -15,6 +15,12 @@ class VerificationStatus(enum.Enum):
     VERIFIED = "verified"
     REJECTED = "rejected"
 
+class AppointmentStatus(enum.Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+
 class User(db.Model, UserMixin):
     """Base user model for both patients and doctors."""
     __tablename__ = 'users'
@@ -44,6 +50,9 @@ class User(db.Model, UserMixin):
     patient = db.relationship('Patient', backref='user', uselist=False, cascade='all, delete-orphan')
     doctor = db.relationship('Doctor', backref='user', uselist=False, cascade='all, delete-orphan')
     
+    # Relationships
+    notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
+    
     def __repr__(self):
         return f'<User {self.email}>'
 
@@ -57,6 +66,9 @@ class Patient(db.Model):
     gender = db.Column(db.String(10))
     blood_type = db.Column(db.String(5))
     medical_history = db.Column(db.Text)
+    
+    # Relationships
+    appointments = db.relationship('Appointment', backref='patient', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Patient {self.user.first_name} {self.user.last_name}>'
@@ -75,12 +87,38 @@ class Doctor(db.Model):
     verification_status = db.Column(db.Enum(VerificationStatus), default=VerificationStatus.PENDING)
     verification_notes = db.Column(db.Text)
     
+    # Profile information
+    location = db.Column(db.String(255))
+    languages = db.Column(db.String(255))  # Comma-separated list of languages
+    consultation_fee = db.Column(db.Float)
+    profile_picture = db.Column(db.String(255))
+    
     # Documents for verification
     license_document_path = db.Column(db.String(255))
     certificate_path = db.Column(db.String(255))
     
+    # Relationships
+    availability = db.relationship('DoctorAvailability', backref='doctor', lazy=True, cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', backref='doctor', lazy=True, cascade='all, delete-orphan')
+    
     def __repr__(self):
         return f'<Doctor {self.user.first_name} {self.user.last_name}>'
+
+class DoctorAvailability(db.Model):
+    """Doctor's available consultation times."""
+    __tablename__ = 'doctor_availability'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
+    day_of_week = db.Column(db.Integer, nullable=False)  # 0=Monday, 6=Sunday
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    is_available = db.Column(db.Boolean, default=True)
+    
+    def __repr__(self):
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        day_name = days[self.day_of_week]
+        return f'<Availability: {day_name}, {self.start_time.strftime("%H:%M")} - {self.end_time.strftime("%H:%M")}>'
 
 class VerificationDocument(db.Model):
     """Documents uploaded by doctors for verification."""
@@ -97,3 +135,36 @@ class VerificationDocument(db.Model):
     
     def __repr__(self):
         return f'<VerificationDocument {self.document_type} for Doctor {self.doctor_id}>'
+
+class Appointment(db.Model):
+    """Appointment booking between patients and doctors."""
+    __tablename__ = 'appointments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
+    appointment_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    status = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.PENDING)
+    reason = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Appointment {self.id}: Patient {self.patient_id} with Doctor {self.doctor_id} on {self.appointment_date}>'
+
+class Notification(db.Model):
+    """Notifications for users."""
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Notification {self.id} for User {self.user_id}>'

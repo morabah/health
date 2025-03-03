@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask
+from flask import Flask, session
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_bcrypt import Bcrypt
@@ -9,6 +9,7 @@ from routes import main, auth, patient, doctor, admin
 from admin_routes import admin_panel
 from config import get_config
 import datetime
+import uuid
 
 # Initialize extensions
 login_manager = LoginManager()
@@ -23,6 +24,9 @@ def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
     app.config.from_object(get_config())
+    
+    # Use a unique session cookie name to avoid conflicts
+    app.config['SESSION_COOKIE_NAME'] = f'session_{uuid.uuid4().hex[:8]}'
     
     # Ensure upload folder exists
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

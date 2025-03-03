@@ -112,3 +112,60 @@ class ResetPasswordForm(FlaskForm):
         EqualTo('password', message='Passwords must match')
     ])
     submit = SubmitField('Reset Password')
+
+class DoctorProfileForm(FlaskForm):
+    """Form for doctor profile management."""
+    specialty = StringField('Specialty', validators=[DataRequired()])
+    location = StringField('Location', validators=[DataRequired()])
+    languages = StringField('Languages (comma separated)', validators=[DataRequired()])
+    years_of_experience = IntegerField('Years of Experience', validators=[DataRequired()])
+    education = TextAreaField('Education', validators=[DataRequired()])
+    bio = TextAreaField('Professional Bio', validators=[DataRequired()])
+    consultation_fee = StringField('Consultation Fee', validators=[DataRequired()])
+    profile_picture = FileField('Profile Picture', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Only images are allowed!')
+    ])
+    submit = SubmitField('Update Profile')
+
+class DoctorAvailabilityForm(FlaskForm):
+    """Form for doctor availability management."""
+    day_of_week = SelectField('Day of Week', choices=[
+        (0, 'Monday'), (1, 'Tuesday'), (2, 'Wednesday'),
+        (3, 'Thursday'), (4, 'Friday'), (5, 'Saturday'), (6, 'Sunday')
+    ], coerce=int, validators=[DataRequired()])
+    start_time = StringField('Start Time (HH:MM)', validators=[
+        DataRequired(),
+        Regexp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', message='Time must be in HH:MM format')
+    ])
+    end_time = StringField('End Time (HH:MM)', validators=[
+        DataRequired(),
+        Regexp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$', message='Time must be in HH:MM format')
+    ])
+    submit = SubmitField('Add Availability')
+
+class DoctorSearchForm(FlaskForm):
+    """Form for searching doctors."""
+    specialty = StringField('Specialty')
+    location = StringField('Location')
+    language = StringField('Language')
+    submit = SubmitField('Search')
+
+class AppointmentBookingForm(FlaskForm):
+    """Form for booking appointments."""
+    appointment_date = DateField('Appointment Date', validators=[DataRequired()])
+    time_slot = SelectField('Time Slot', validators=[DataRequired()])
+    reason = TextAreaField('Reason for Visit', validators=[DataRequired()])
+    notes = TextAreaField('Additional Notes')
+    submit = SubmitField('Book Appointment')
+
+class AppointmentCancellationForm(FlaskForm):
+    """Form for cancelling appointments."""
+    reason = TextAreaField('Reason for Cancellation', validators=[DataRequired()])
+    submit = SubmitField('Cancel Appointment')
+
+class AppointmentRescheduleForm(FlaskForm):
+    """Form for rescheduling appointments."""
+    appointment_date = DateField('New Appointment Date', validators=[DataRequired()])
+    time_slot = SelectField('New Time Slot', validators=[DataRequired()])
+    reason = TextAreaField('Reason for Rescheduling', validators=[DataRequired()])
+    submit = SubmitField('Reschedule Appointment')

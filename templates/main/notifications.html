@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .notification-item {
+        border-left: 4px solid #ccc;
+        transition: all 0.3s;
+    }
+    .notification-item:hover {
+        background-color: #f8f9fa;
+    }
+    .notification-item.unread {
+        border-left-color: #007bff;
+        background-color: #f0f7ff;
+    }
+    .notification-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .notification-title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    .notification-content {
+        color: #495057;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    .empty-state i {
+        font-size: 4rem;
+        color: #dee2e6;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
+                    <li class="breadcrumb-item active">Notifications</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>Notifications</h2>
+            <p class="text-muted">View all your notifications</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if notifications %}
+                        <div class="list-group">
+                            {% for notification in notifications %}
+                                <div class="list-group-item notification-item {% if not notification.is_read %}unread{% endif %}">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="notification-title">{{ notification.title }}</h5>
+                                        <small class="notification-time">
+                                            {{ notification.created_at.strftime('%d %b, %Y at %H:%M') }}
+                                        </small>
+                                    </div>
+                                    <p class="notification-content mb-1">{{ notification.message }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="far fa-bell"></i>
+                            <h4>No Notifications</h4>
+                            <p class="text-muted">You don't have any notifications at the moment.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
