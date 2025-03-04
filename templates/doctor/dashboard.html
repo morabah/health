@@ -17,7 +17,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted">Today's Appointments</h6>
-                        <h2 class="mb-0">{{ today_appointments|default(0) }}</h2>
+                        <h2 class="mb-0">{{ today_appointments|length|default(0) }}</h2>
                     </div>
                     <div class="bg-primary bg-gradient text-white rounded-circle p-3">
                         <i class="fas fa-calendar-day fa-2x"></i>
@@ -33,7 +33,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted">Upcoming Appointments</h6>
-                        <h2 class="mb-0">{{ upcoming_appointments|default(0) }}</h2>
+                        <h2 class="mb-0">{{ upcoming_appointments|length|default(0) }}</h2>
                     </div>
                     <div class="bg-success bg-gradient text-white rounded-circle p-3">
                         <i class="fas fa-calendar-check fa-2x"></i>
@@ -138,9 +138,9 @@
                             <tbody>
                                 {% for appointment in today_appointments %}
                                     <tr>
-                                        <td>{{ appointment.start_time.strftime('%H:%M') }}</td>
+                                        <td>{{ appointment.start_time.strftime('%H:%M') if appointment.start_time else appointment.appointment_date.strftime('%H:%M') }}</td>
                                         <td>{{ appointment.patient.user.first_name }} {{ appointment.patient.user.last_name }}</td>
-                                        <td>{{ appointment.reason|truncate(20) }}</td>
+                                        <td>{{ appointment.reason|default('Consultation')|truncate(20) }}</td>
                                         <td>
                                             <span class="badge {% if appointment.status.name == 'CONFIRMED' %}bg-success{% elif appointment.status.name == 'PENDING' %}bg-warning{% else %}bg-secondary{% endif %}">
                                                 {{ appointment.status.name }}
@@ -183,16 +183,16 @@
             <div class="card-body">
                 {% if upcoming_appointments and upcoming_appointments|length > 0 %}
                     <div class="list-group">
-                        {% for appointment in upcoming_appointments[:3] %}
+                        {% for appointment in upcoming_appointments %}
                             <div class="list-group-item">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h5 class="mb-1">{{ appointment.patient.user.first_name }} {{ appointment.patient.user.last_name }}</h5>
                                     <small>{{ appointment.appointment_date.strftime('%d %b, %Y') }}</small>
                                 </div>
                                 <p class="mb-1">
-                                    <i class="far fa-clock text-primary me-1"></i> {{ appointment.start_time.strftime('%H:%M') }} - {{ appointment.end_time.strftime('%H:%M') }}
+                                    <i class="far fa-clock text-primary me-1"></i> {{ appointment.start_time.strftime('%H:%M') if appointment.start_time else appointment.appointment_date.strftime('%H:%M') }} - {{ appointment.end_time.strftime('%H:%M') if appointment.end_time else "" }}
                                 </p>
-                                <small>{{ appointment.reason|truncate(50) }}</small>
+                                <small>{{ appointment.reason|default('Consultation')|truncate(50) }}</small>
                             </div>
                         {% endfor %}
                     </div>

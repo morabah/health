@@ -3,6 +3,9 @@ from flask_login import login_required, current_user, login_user, logout_user
 from models import db, User, Patient, Doctor, UserType, VerificationStatus, VerificationDocument
 from werkzeug.security import generate_password_hash
 import os
+import signal
+import sys
+import subprocess
 from datetime import datetime
 from flask_bcrypt import Bcrypt
 
@@ -380,3 +383,54 @@ def api_activate_user(user_id):
     db.session.commit()
     
     return jsonify({'success': True, 'message': 'User activated successfully'})
+
+@admin_panel.route('/restart', methods=['GET'])
+@login_required
+@admin_required
+def restart_page():
+    """Display the restart server page"""
+    return render_template('admin/restart.html')
+
+@admin_panel.route('/restart-server', methods=['POST'])
+@login_required
+@admin_required
+def restart_server():
+    """Restart the Flask server"""
+    try:
+        # Get the current process ID
+        pid = os.getpid()
+        
+        # Start a new process that will restart the server
+        # This uses a separate Python process to avoid killing the current request
+        restart_command = f"""
+import os
+import time
+import signal
+import subprocess
+
+# Wait a moment to allow the current request to complete
+time.sleep(1)
+
+# Kill the Flask process
+try:
+    os.kill({pid}, signal.SIGTERM)
+except:
+    pass
+
+# Start the server again
+subprocess.Popen(['python3', 'app.py'], 
+                 cwd='{os.getcwd()}', 
+                 stdout=subprocess.PIPE,
+                 stderr=subprocess.PIPE)
+"""
+        
+        # Execute the restart command in a separate process
+        subprocess.Popen([sys.executable, '-c', restart_command],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
+        
+        flash('Server restart initiated. Please wait a moment...', 'info')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        flash(f'Error restarting server: {str(e)}', 'danger')
+        return redirect(url_for('admin_panel.restart_page'))

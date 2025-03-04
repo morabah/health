@@ -61,7 +61,7 @@
                             </li>
                         {% elif current_user.user_type.value == 'doctor' %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('doctor.dashboard') }}">Dashboard</a>
+                                <a class="nav-link" href="{{ url_for('doctor.doctor_dashboard') }}">Dashboard</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('doctor.doctor_appointments') }}">My Appointments</a>

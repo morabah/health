@@ -309,7 +309,7 @@ def login():
             if user.user_type == UserType.PATIENT:
                 return redirect(next_page or url_for('patient.dashboard'))
             else:
-                return redirect(next_page or url_for('doctor.dashboard'))
+                return redirect(next_page or url_for('doctor.doctor_dashboard'))
         else:
             flash('Login failed. Please check your email and password.', 'danger')
     
@@ -381,7 +381,7 @@ def dashboard():
 # Doctor routes
 @doctor.route('/dashboard')
 @login_required
-def dashboard():
+def doctor_dashboard():
     if current_user.user_type != UserType.DOCTOR:
         flash('Access denied. Doctor privileges required.', 'danger')
         return redirect(url_for('main.index'))
@@ -390,23 +390,28 @@ def dashboard():
     
     # Get today's appointments
     today = datetime.now().date()
-    today_appointments = Appointment.query.filter_by(
-        doctor_id=doctor.id, 
-        appointment_date=today
+    today_appointments = Appointment.query.filter(
+        Appointment.doctor_id == doctor.id, 
+        func.date(Appointment.appointment_date) == today
     ).order_by(Appointment.start_time).all()
     
     # Get upcoming appointments (excluding today)
     upcoming_appointments = Appointment.query.filter(
         Appointment.doctor_id == doctor.id,
-        Appointment.appointment_date > today,
+        func.date(Appointment.appointment_date) > today,
         Appointment.status != AppointmentStatus.CANCELLED
-    ).order_by(Appointment.appointment_date, Appointment.start_time).all()
+    ).order_by(Appointment.appointment_date, Appointment.start_time).limit(3).all()
     
     # Get unread notifications count
-    unread_notifications = Notification.query.filter_by(
-        user_id=current_user.id, 
-        is_read=False
-    ).count()
+    unread_notifications = 0
+    try:
+        unread_notifications = Notification.query.filter_by(
+            user_id=current_user.id, 
+            is_read=False
+        ).count()
+    except:
+        # Notification model might not exist yet
+        pass
     
     return render_template(
         'doctor/dashboard.html', 
