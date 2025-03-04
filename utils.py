@@ -148,7 +148,7 @@ def create_notification(user_id, title, message):
             user_id=user_id,
             title=title,
             message=message,
-            timestamp=datetime.utcnow()
+            created_at=datetime.utcnow()
         )
         db.session.add(notification)
         try:
