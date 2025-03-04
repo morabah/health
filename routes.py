@@ -11,7 +11,7 @@ import json
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus
+from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus, VerificationDocument
 from models import db
 from forms import (
     LoginForm, PatientRegistrationForm, DoctorRegistrationForm,
@@ -19,7 +19,7 @@ from forms import (
     ResetPasswordForm, DoctorProfileForm, DoctorAvailabilityForm,
     DoctorSearchForm, AppointmentBookingForm, AppointmentCancellationForm
 )
-from utils import create_notification
+from utils import create_notification, generate_verification_code, generate_verification_token, save_verification_document, send_verification_email, send_verification_sms, send_password_reset_email
 
 # Create blueprints for different sections of the app
 main = Blueprint('main', __name__)
