@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, make_response
 from flask_login import login_required, current_user, login_user, logout_user
 from models import db, User, Patient, Doctor, UserType, VerificationStatus, VerificationDocument
 from werkzeug.security import generate_password_hash
@@ -8,6 +8,8 @@ import sys
 import subprocess
 from datetime import datetime
 from flask_bcrypt import Bcrypt
+import time
+from threading import Thread
 
 # Create bcrypt instance
 bcrypt = Bcrypt()
@@ -395,42 +397,24 @@ def restart_page():
 @login_required
 @admin_required
 def restart_server():
-    """Restart the Flask server"""
+    """Graceful server restart with response confirmation"""
     try:
-        # Get the current process ID
-        pid = os.getpid()
+        # Send response first
+        response = make_response(redirect(url_for('main.index')))
+        response.headers['Refresh'] = '5;url=/'
         
-        # Start a new process that will restart the server
-        # This uses a separate Python process to avoid killing the current request
-        restart_command = f"""
-import os
-import time
-import signal
-import subprocess
-
-# Wait a moment to allow the current request to complete
-time.sleep(1)
-
-# Kill the Flask process
-try:
-    os.kill({pid}, signal.SIGTERM)
-except:
-    pass
-
-# Start the server again
-subprocess.Popen(['python3', 'app.py'], 
-                 cwd='{os.getcwd()}', 
-                 stdout=subprocess.PIPE,
-                 stderr=subprocess.PIPE)
-"""
+        # Prepare restart in background
+        def delayed_restart():
+            time.sleep(2)  # Allow response to complete
+            python = sys.executable
+            os.execl(python, python, *sys.argv)
+            
+        Thread(target=delayed_restart).start()
         
-        # Execute the restart command in a separate process
-        subprocess.Popen([sys.executable, '-c', restart_command],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE)
-        
-        flash('Server restart initiated. Please wait a moment...', 'info')
-        return redirect(url_for('main.index'))
+        flash('Server restart initiated - redirecting in 5 seconds', 'info')
+        return response
+
     except Exception as e:
-        flash(f'Error restarting server: {str(e)}', 'danger')
+        current_app.logger.error(f'Restart failed: {str(e)}')
+        flash(f'Restart error: {str(e)}', 'danger')
         return redirect(url_for('admin_panel.restart_page'))
