@@ -1,19 +1,22 @@
 from datetime import datetime, time, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, abort
-from flask_login import login_required, current_user
+from flask_login import login_required, current_user, login_user, logout_user
 from sqlalchemy import or_, and_, func, desc
 import os
 import secrets
 from PIL import Image
 import pytz
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus
 from models import db
 from forms import (
-    DoctorProfileForm, DoctorAvailabilityForm, AppointmentBookingForm,
-    DoctorSearchForm, AppointmentCancellationForm, AppointmentRescheduleForm
+    LoginForm, PatientRegistrationForm, DoctorRegistrationForm,
+    PhoneVerificationForm, ResendVerificationForm, ForgotPasswordForm,
+    ResetPasswordForm, DoctorProfileForm, DoctorAvailabilityForm,
+    DoctorSearchForm, AppointmentBookingForm, AppointmentCancellationForm
 )
 from utils import create_notification
 
