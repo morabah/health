@@ -6,10 +6,11 @@ import uuid
 from flask import current_app, url_for
 from flask_mail import Message
 from werkzeug.utils import secure_filename
-from models import User, VerificationStatus, Notification, DoctorAvailability, Appointment, AppointmentStatus
+from models import User, VerificationStatus, Notification, DoctorAvailability, Appointment, AppointmentStatus, db
 import logging
 import secrets
 from PIL import Image
+from sqlalchemy.exc import SQLAlchemyError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -141,25 +142,20 @@ def save_profile_picture(form_picture, user_id):
     return f'profile_pics/{picture_filename}'
 
 def create_notification(user_id, title, message):
-    """
-    Create a notification for a user.
-    
-    Args:
-        user_id: The ID of the user to notify
-        title: The notification title
-        message: The notification message
-        
-    Returns:
-        The created notification object
-    """
-    notification = Notification(
-        user_id=user_id,
-        title=title,
-        message=message
-    )
-    db.session.add(notification)
-    db.session.commit()
-    return notification
+    """Create and store a notification with database context"""
+    with current_app.app_context():
+        notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(notification)
+        try:
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.error(f"Notification failed: {str(e)}")
 
 def get_available_slots(doctor_id, date):
     """
