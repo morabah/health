@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, PasswordField, SubmitField, SelectField, TextAreaField, DateField, IntegerField, BooleanField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Regexp
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Regexp, Optional
 import phonenumbers
 from models import User
 
@@ -53,7 +53,7 @@ class PatientRegistrationForm(RegistrationBaseForm):
         ('AB+', 'AB+'), ('AB-', 'AB-'),
         ('O+', 'O+'), ('O-', 'O-'),
     ])
-    medical_history = TextAreaField('Medical History')
+    medical_history = TextAreaField('Medical History', validators=[Optional()])
     submit = SubmitField('Register as Patient')
 
 class DoctorRegistrationForm(RegistrationBaseForm):
