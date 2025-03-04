@@ -8,7 +8,7 @@ import secrets
 from PIL import Image
 import pytz
 import json
-from werkzeug.security import generate_password_hash, check_password_hash
+import logging
 from werkzeug.utils import secure_filename
 
 from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus, VerificationDocument
@@ -19,7 +19,11 @@ from forms import (
     ResetPasswordForm, DoctorProfileForm, DoctorAvailabilityForm,
     DoctorSearchForm, AppointmentBookingForm, AppointmentCancellationForm
 )
-from utils import create_notification, generate_verification_code, generate_verification_token, save_verification_document, send_verification_email, send_verification_sms, send_password_reset_email
+from utils import (
+    create_notification, generate_verification_code, generate_verification_token, 
+    save_verification_document, send_verification_email, send_verification_sms, 
+    send_password_reset_email, generate_password_hash, check_password_hash
+)
 
 # Create blueprints for different sections of the app
 main = Blueprint('main', __name__)
@@ -301,6 +305,7 @@ def pending_verification(user_id):
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
+    logger = logging.getLogger(__name__)
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
@@ -309,28 +314,43 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         
-        if user and check_password_hash(user.password_hash, form.password.data):
+        # Log user information for debugging
+        if user:
+            logger.info(f"Login attempt for user: {user.email}, ID: {user.id}, Active: {user.is_active}, " +
+                       f"Email verified: {user.email_verified}, Phone verified: {user.phone_verified}")
+            if user.user_type == UserType.DOCTOR:
+                logger.info(f"Doctor verification status: {user.doctor.verification_status}")
+        else:
+            logger.warning(f"Login attempt for non-existent user: {form.email.data}")
+        
+        # Debug password check
+        password_ok = False
+        if user:
+            password_ok = check_password_hash(user.password_hash, form.password.data)
+            logger.info(f"Password check result: {password_ok}")
+        
+        if user and password_ok:
+            # Check verification status first
+            if not user.email_verified or not user.phone_verified:
+                flash('Please verify your email and phone number before logging in.', 'warning')
+                return redirect(url_for('auth.pending_verification', user_id=user.id))
+            
+            # For doctors, check credential verification
+            if user.user_type == UserType.DOCTOR:
+                if user.doctor.verification_status == VerificationStatus.PENDING:
+                    flash('Your account is pending credential verification. You will be notified once verified.', 'info')
+                    return redirect(url_for('main.index'))
+                elif user.doctor.verification_status == VerificationStatus.REJECTED:
+                    flash('Your credential verification was rejected. Please contact support for more information.', 'danger')
+                    return redirect(url_for('main.index'))
+            
             # Check if user is active
             if not user.is_active:
-                # Check verification status
-                if not user.email_verified or not user.phone_verified:
-                    flash('Please verify your email and phone number before logging in.', 'warning')
-                    return redirect(url_for('auth.pending_verification', user_id=user.id))
-                
-                # For doctors, check credential verification
-                if user.user_type == UserType.DOCTOR:
-                    if user.doctor.verification_status == VerificationStatus.PENDING:
-                        flash('Your account is pending credential verification. You will be notified once verified.', 'info')
-                        return redirect(url_for('main.index'))
-                    elif user.doctor.verification_status == VerificationStatus.REJECTED:
-                        flash('Your credential verification was rejected. Please contact support for more information.', 'danger')
-                        return redirect(url_for('main.index'))
-                
-                # If we get here, something else is preventing activation
+                # If we get here, the user is verified but not active for some other reason
                 flash('Your account is not active. Please contact support.', 'warning')
                 return redirect(url_for('main.index'))
-            
-            # If all checks pass, log in the user
+                
+            # All checks passed, log the user in
             login_user(user, remember=form.remember.data)
             
             # Redirect to appropriate dashboard
