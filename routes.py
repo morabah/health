@@ -405,7 +405,71 @@ def dashboard():
     if current_user.user_type != UserType.PATIENT:
         abort(403)
     
-    return render_template('patient/dashboard.html')
+    patient = current_user.patient
+    
+    # Get appointment data
+    appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_date.desc()).all()
+    upcoming_appointments = [a for a in appointments if a.appointment_date >= datetime.now().date()]
+    
+    # Get notification data
+    notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(5).all()
+    
+    # Get medical records count - handle if model doesn't exist
+    try:
+        from models import MedicalRecord
+        medical_records_count = MedicalRecord.query.filter_by(patient_id=patient.id).count()
+    except (ImportError, AttributeError):
+        medical_records_count = 0
+    
+    # Get prescription count - handle if model doesn't exist
+    try:
+        from models import Prescription
+        prescription_count = Prescription.query.filter_by(patient_id=patient.id).count()
+    except (ImportError, AttributeError):
+        prescription_count = 0
+    
+    # Format appointment data for display
+    formatted_appointments = []
+    for appointment in upcoming_appointments[:5]:  # Limit to 5 most recent
+        doctor_name = f"Dr. {appointment.doctor.user.first_name} {appointment.doctor.user.last_name}" if appointment.doctor and appointment.doctor.user else "Unknown Doctor"
+        
+        # Determine status class for badge styling
+        status_class = ""
+        if appointment.status == AppointmentStatus.CONFIRMED:
+            status_class = "bg-success"
+        elif appointment.status == AppointmentStatus.PENDING:
+            status_class = "bg-warning"
+        elif appointment.status == AppointmentStatus.CANCELLED:
+            status_class = "bg-danger"
+        elif appointment.status == AppointmentStatus.COMPLETED:
+            status_class = "bg-info"
+        
+        formatted_appointments.append({
+            'id': appointment.id,
+            'doctor_name': doctor_name,
+            'date': appointment.appointment_date.strftime('%d %b, %Y'),
+            'time': f"{appointment.start_time.strftime('%H:%M')} - {appointment.end_time.strftime('%H:%M')}",
+            'status': appointment.status.value,
+            'status_class': status_class
+        })
+    
+    # Format notification data for display
+    formatted_notifications = []
+    for notification in notifications:
+        formatted_notifications.append({
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'time_ago': get_time_ago(notification.created_at)
+        })
+    
+    return render_template('patient/dashboard.html',
+                          upcoming_appointments=len(upcoming_appointments),
+                          medical_records=medical_records_count,
+                          prescriptions=prescription_count,
+                          notifications=len(notifications),
+                          appointments=formatted_appointments,
+                          notification_list=formatted_notifications)
 
 @patient.route('/get-dashboard-data')
 @login_required
@@ -419,7 +483,7 @@ def get_dashboard_data():
     upcoming_appointments = [a for a in appointments if a.appointment_date >= datetime.now().date()]
     
     # Get notification data
-    notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.timestamp.desc()).limit(5).all()
+    notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(5).all()
     
     # Get medical records count - handle if model doesn't exist
     try:
@@ -438,7 +502,7 @@ def get_dashboard_data():
     # Format appointment data for JSON
     appointment_data = []
     for appointment in upcoming_appointments[:5]:  # Limit to 5 most recent
-        doctor_name = appointment.doctor.user.get_name() if appointment.doctor and appointment.doctor.user else "Unknown Doctor"
+        doctor_name = f"Dr. {appointment.doctor.user.first_name} {appointment.doctor.user.last_name}" if appointment.doctor and appointment.doctor.user else "Unknown Doctor"
         
         # Determine status class for badge styling
         status_class = ""
@@ -462,7 +526,7 @@ def get_dashboard_data():
     # Format notification data for JSON
     notification_data = []
     for notification in notifications:
-        time_ago = get_time_ago(notification.timestamp)
+        time_ago = get_time_ago(notification.created_at)
         notification_data.append({
             'id': notification.id,
             'title': notification.title,
@@ -487,16 +551,17 @@ def get_time_ago(timestamp):
     now = datetime.now()
     diff = now - timestamp
     
-    if diff.days > 365:
-        return f"{diff.days // 365} year{'s' if diff.days // 365 != 1 else ''} ago"
-    elif diff.days > 30:
-        return f"{diff.days // 30} month{'s' if diff.days // 30 != 1 else ''} ago"
+    if diff.days > 30:
+        months = diff.days // 30
+        return f"{months} month{'s' if months > 1 else ''} ago"
     elif diff.days > 0:
-        return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
-    elif diff.seconds > 3600:
-        return f"{diff.seconds // 3600} hour{'s' if diff.seconds // 3600 != 1 else ''} ago"
-    elif diff.seconds > 60:
-        return f"{diff.seconds // 60} minute{'s' if diff.seconds // 60 != 1 else ''} ago"
+        return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+    elif diff.seconds >= 3600:
+        hours = diff.seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    elif diff.seconds >= 60:
+        minutes = diff.seconds // 60
+        return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
     else:
         return "Just now"
 
