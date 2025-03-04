@@ -53,6 +53,26 @@ def create_app():
     def inject_now():
         return {'now': datetime.datetime.now()}
     
+    # Register custom template filters
+    @app.template_filter('time_ago')
+    def time_ago_filter(timestamp):
+        """Format timestamp as time ago text"""
+        now = datetime.datetime.now()
+        diff = now - timestamp
+        
+        if diff.days > 365:
+            return f"{diff.days // 365} year{'s' if diff.days // 365 != 1 else ''} ago"
+        elif diff.days > 30:
+            return f"{diff.days // 30} month{'s' if diff.days // 30 != 1 else ''} ago"
+        elif diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+        elif diff.seconds > 3600:
+            return f"{diff.seconds // 3600} hour{'s' if diff.seconds // 3600 != 1 else ''} ago"
+        elif diff.seconds > 60:
+            return f"{diff.seconds // 60} minute{'s' if diff.seconds // 60 != 1 else ''} ago"
+        else:
+            return "Just now"
+    
     return app
 
 def init_db():

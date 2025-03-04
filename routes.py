@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, abort
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app, make_response, abort
 from flask_login import login_required, current_user, login_user, logout_user
+from functools import wraps
 from sqlalchemy import or_, and_, func, desc
 import os
 import secrets
@@ -26,6 +27,34 @@ auth = Blueprint('auth', __name__)
 patient = Blueprint('patient', __name__)
 doctor = Blueprint('doctor', __name__)
 admin = Blueprint('admin', __name__)
+
+# Role-based access control decorators
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.user_type != UserType.ADMIN:
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('main.index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def doctor_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.user_type != UserType.DOCTOR:
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('main.index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def patient_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.user_type != UserType.PATIENT:
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('main.index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Main routes
 @main.route('/')
@@ -378,6 +407,99 @@ def dashboard():
     
     return render_template('patient/dashboard.html')
 
+@patient.route('/get-dashboard-data')
+@login_required
+@patient_required
+def get_dashboard_data():
+    """API endpoint to get real-time patient dashboard data"""
+    patient = current_user.patient
+    
+    # Get appointment data
+    appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_date.desc()).all()
+    upcoming_appointments = [a for a in appointments if a.appointment_date >= datetime.now().date()]
+    
+    # Get notification data
+    notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.timestamp.desc()).limit(5).all()
+    
+    # Get medical records count - handle if model doesn't exist
+    try:
+        from models import MedicalRecord
+        medical_records_count = MedicalRecord.query.filter_by(patient_id=patient.id).count()
+    except (ImportError, AttributeError):
+        medical_records_count = 0
+    
+    # Get prescription count - handle if model doesn't exist
+    try:
+        from models import Prescription
+        prescription_count = Prescription.query.filter_by(patient_id=patient.id).count()
+    except (ImportError, AttributeError):
+        prescription_count = 0
+    
+    # Format appointment data for JSON
+    appointment_data = []
+    for appointment in upcoming_appointments[:5]:  # Limit to 5 most recent
+        doctor_name = appointment.doctor.user.get_name() if appointment.doctor and appointment.doctor.user else "Unknown Doctor"
+        
+        # Determine status class for badge styling
+        status_class = ""
+        if appointment.status == AppointmentStatus.CONFIRMED:
+            status_class = "bg-success"
+        elif appointment.status == AppointmentStatus.PENDING:
+            status_class = "bg-warning"
+        elif appointment.status == AppointmentStatus.CANCELLED:
+            status_class = "bg-danger"
+        elif appointment.status == AppointmentStatus.COMPLETED:
+            status_class = "bg-info"
+        
+        appointment_data.append({
+            'id': appointment.id,
+            'doctor_name': doctor_name,
+            'date': appointment.appointment_date.strftime('%d %b, %Y %H:%M'),
+            'status': appointment.status.value,
+            'status_class': status_class
+        })
+    
+    # Format notification data for JSON
+    notification_data = []
+    for notification in notifications:
+        time_ago = get_time_ago(notification.timestamp)
+        notification_data.append({
+            'id': notification.id,
+            'title': notification.title,
+            'message': notification.message,
+            'time_ago': time_ago
+        })
+    
+    # Prepare response data
+    dashboard_data = {
+        'appointment_count': len(upcoming_appointments),
+        'record_count': medical_records_count,
+        'prescription_count': prescription_count,
+        'notification_count': len(notifications),
+        'appointments': appointment_data,
+        'notifications': notification_data
+    }
+    
+    return jsonify(dashboard_data)
+
+def get_time_ago(timestamp):
+    """Helper function to format timestamp as time ago text"""
+    now = datetime.now()
+    diff = now - timestamp
+    
+    if diff.days > 365:
+        return f"{diff.days // 365} year{'s' if diff.days // 365 != 1 else ''} ago"
+    elif diff.days > 30:
+        return f"{diff.days // 30} month{'s' if diff.days // 30 != 1 else ''} ago"
+    elif diff.days > 0:
+        return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+    elif diff.seconds > 3600:
+        return f"{diff.seconds // 3600} hour{'s' if diff.seconds // 3600 != 1 else ''} ago"
+    elif diff.seconds > 60:
+        return f"{diff.seconds // 60} minute{'s' if diff.seconds // 60 != 1 else ''} ago"
+    else:
+        return "Just now"
+
 # Doctor routes
 @doctor.route('/dashboard')
 @login_required
@@ -567,7 +689,7 @@ def delete_availability(availability_id):
 
 # Main routes for doctor search
 @main.route('/doctors', methods=['GET', 'POST'])
-def find_doctors():
+def doctors():
     """Search for doctors by specialty, location, and language."""
     form = DoctorSearchForm()
     doctors = []
@@ -596,7 +718,7 @@ def find_doctors():
     if not doctors and request.method == 'GET':
         doctors = Doctor.query.filter_by(verification_status=VerificationStatus.VERIFIED).all()
     
-    return render_template('main/find_doctors.html', form=form, doctors=doctors)
+    return render_template('main/doctors.html', form=form, doctors=doctors)
 
 @main.route('/doctor/<int:doctor_id>')
 def doctor_profile(doctor_id):
@@ -606,7 +728,7 @@ def doctor_profile(doctor_id):
     # Only show verified doctors
     if doctor.verification_status != VerificationStatus.VERIFIED:
         flash('This doctor profile is not available.', 'info')
-        return redirect(url_for('main.find_doctors'))
+        return redirect(url_for('main.doctors'))
     
     # Get doctor's user information
     user = User.query.get(doctor.user_id)

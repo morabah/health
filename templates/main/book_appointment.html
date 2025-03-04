@@ -37,7 +37,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Home</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('main.find_doctors') }}">Find Doctors</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.doctors') }}">Find Doctors</a></li>
                     <li class="breadcrumb-item"><a href="{{ url_for('main.doctor_profile', doctor_id=doctor.id) }}">Dr. {{ doctor.user.last_name }}</a></li>
                     <li class="breadcrumb-item active">Book Appointment</li>
                 </ol>
