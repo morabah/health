@@ -827,34 +827,88 @@ def doctor_profile(doctor_id):
 # Admin routes
 @admin.route('/dashboard')
 @login_required
+@admin_required
 def dashboard():
-    # In a real app, you would check if the user is an admin
+    """Admin dashboard."""
     return render_template('admin/dashboard.html')
 
 @admin.route('/doctor-verification')
 @login_required
+@admin_required
 def doctor_verification():
-    # In a real app, you would check if the user is an admin
+    """Verify doctor accounts."""
     doctors = Doctor.query.filter_by(verification_status=VerificationStatus.PENDING).all()
     return render_template('admin/doctor_verification.html', doctors=doctors)
 
-@admin.route('/verify-doctor/<int:doctor_id>/<action>', methods=['POST'])
+@admin.route('/verify-doctor/<int:doctor_id>/<action>')
 @login_required
+@admin_required
 def verify_doctor(doctor_id, action):
-    # In a real app, you would check if the user is an admin
+    """Approve or reject a doctor's verification."""
     doctor = Doctor.query.get_or_404(doctor_id)
     
     if action == 'approve':
         doctor.verification_status = VerificationStatus.VERIFIED
-        doctor.user.is_active = True
-        flash(f'Doctor {doctor.user.first_name} {doctor.user.last_name} has been verified.', 'success')
+        flash('Doctor verification approved.', 'success')
     elif action == 'reject':
         doctor.verification_status = VerificationStatus.REJECTED
-        doctor.verification_notes = request.form.get('rejection_reason', '')
-        flash(f'Doctor {doctor.user.first_name} {doctor.user.last_name} has been rejected.', 'info')
+        flash('Doctor verification rejected.', 'danger')
     
     db.session.commit()
     return redirect(url_for('admin.doctor_verification'))
+
+# Test route for adding sample availability (remove in production)
+@main.route('/add-sample-availability/<int:doctor_id>')
+def add_sample_availability(doctor_id):
+    """Add sample availability for testing."""
+    doctor = Doctor.query.get_or_404(doctor_id)
+    
+    # Check if doctor already has availability
+    existing = DoctorAvailability.query.filter_by(doctor_id=doctor_id).count()
+    if existing > 0:
+        flash('Doctor already has availability set.', 'info')
+        return redirect(url_for('main.doctor_profile', doctor_id=doctor_id))
+    
+    # Add sample availability for Monday, Wednesday, and Friday
+    availabilities = [
+        # Monday
+        DoctorAvailability(
+            doctor_id=doctor_id,
+            day_of_week=0,  # Monday
+            start_time=time(9, 0),  # 9:00 AM
+            end_time=time(11, 0),   # 11:00 AM
+            is_available=True
+        ),
+        DoctorAvailability(
+            doctor_id=doctor_id,
+            day_of_week=0,  # Monday
+            start_time=time(14, 0),  # 2:00 PM
+            end_time=time(16, 0),    # 4:00 PM
+            is_available=True
+        ),
+        # Wednesday
+        DoctorAvailability(
+            doctor_id=doctor_id,
+            day_of_week=2,  # Wednesday
+            start_time=time(10, 0),  # 10:00 AM
+            end_time=time(12, 0),    # 12:00 PM
+            is_available=True
+        ),
+        # Friday
+        DoctorAvailability(
+            doctor_id=doctor_id,
+            day_of_week=4,  # Friday
+            start_time=time(13, 0),  # 1:00 PM
+            end_time=time(17, 0),    # 5:00 PM
+            is_available=True
+        )
+    ]
+    
+    db.session.add_all(availabilities)
+    db.session.commit()
+    
+    flash('Sample availability added for testing.', 'success')
+    return redirect(url_for('main.doctor_profile', doctor_id=doctor_id))
 
 # Appointment routes
 @main.route('/book-appointment/<int:doctor_id>', methods=['GET', 'POST'])
