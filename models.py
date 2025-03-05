@@ -2,6 +2,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 import enum
+from typing import Optional, List
 
 db = SQLAlchemy()
 
@@ -53,8 +54,24 @@ class User(db.Model, UserMixin):
     # Relationships
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
     
-    def __repr__(self):
-        return f'<User {self.email}>'
+    def __repr__(self) -> str:
+        """Return string representation of User."""
+        return f"User(id={self.id}, email={self.email}, type={self.user_type.value})"
+    
+    def get_full_name(self) -> str:
+        """Return the full name of the user."""
+        return f"{self.first_name} {self.last_name}"
+    
+    def get_unread_notifications_count(self) -> int:
+        """Get count of unread notifications for this user."""
+        from sqlalchemy import func
+        from sqlalchemy.orm import Session
+        
+        session = Session.object_session(self)
+        return session.query(func.count(Notification.id)).filter(
+            Notification.user_id == self.id,
+            Notification.is_read == False
+        ).scalar() or 0
 
 class Patient(db.Model):
     """Patient-specific information."""
@@ -70,8 +87,9 @@ class Patient(db.Model):
     # Relationships
     appointments = db.relationship('Appointment', backref='patient', lazy=True, cascade='all, delete-orphan')
     
-    def __repr__(self):
-        return f'<Patient {self.user.first_name} {self.user.last_name}>'
+    def __repr__(self) -> str:
+        """Return string representation of Patient."""
+        return f"Patient(id={self.id}, user_id={self.user_id}, date_of_birth={self.date_of_birth})"
 
 class Doctor(db.Model):
     """Doctor-specific information with credential verification."""
@@ -101,8 +119,9 @@ class Doctor(db.Model):
     availability = db.relationship('DoctorAvailability', backref='doctor', lazy=True, cascade='all, delete-orphan')
     appointments = db.relationship('Appointment', backref='doctor', lazy=True, cascade='all, delete-orphan')
     
-    def __repr__(self):
-        return f'<Doctor {self.user.first_name} {self.user.last_name}>'
+    def __repr__(self) -> str:
+        """Return string representation of Doctor."""
+        return f"Doctor(id={self.id}, user_id={self.user_id}, specialty={self.specialty})"
 
 class DoctorAvailability(db.Model):
     """Doctor's available consultation times."""
@@ -115,10 +134,11 @@ class DoctorAvailability(db.Model):
     end_time = db.Column(db.Time, nullable=False)
     is_available = db.Column(db.Boolean, default=True)
     
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return string representation of DoctorAvailability."""
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         day_name = days[self.day_of_week]
-        return f'<Availability: {day_name}, {self.start_time.strftime("%H:%M")} - {self.end_time.strftime("%H:%M")}>'
+        return f"Availability(id={self.id}, doctor_id={self.doctor_id}, day={day_name}, start_time={self.start_time}, end_time={self.end_time})"
 
 class VerificationDocument(db.Model):
     """Documents uploaded by doctors for verification."""
@@ -133,8 +153,9 @@ class VerificationDocument(db.Model):
     # Relationship
     doctor = db.relationship('Doctor', backref=db.backref('documents', lazy=True))
     
-    def __repr__(self):
-        return f'<VerificationDocument {self.document_type} for Doctor {self.doctor_id}>'
+    def __repr__(self) -> str:
+        """Return string representation of VerificationDocument."""
+        return f"VerificationDocument(id={self.id}, doctor_id={self.doctor_id}, document_type={self.document_type})"
 
 class Appointment(db.Model):
     """Appointment booking between patients and doctors."""
@@ -152,8 +173,9 @@ class Appointment(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def __repr__(self):
-        return f'<Appointment {self.id}: Patient {self.patient_id} with Doctor {self.doctor_id} on {self.appointment_date}>'
+    def __repr__(self) -> str:
+        """Return string representation of Appointment."""
+        return f"Appointment(id={self.id}, patient_id={self.patient_id}, doctor_id={self.doctor_id}, appointment_date={self.appointment_date})"
 
 class Notification(db.Model):
     """Notifications for users."""
@@ -166,5 +188,6 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def __repr__(self):
-        return f'<Notification {self.id} for User {self.user_id}>'
+    def __repr__(self) -> str:
+        """Return string representation of Notification."""
+        return f"Notification(id={self.id}, user_id={self.user_id}, title={self.title})"

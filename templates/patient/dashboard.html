@@ -122,7 +122,7 @@
                     {% endif %}
                 {% else %}
                     <div class="text-center py-5">
-                        <img src="{{ url_for('static', filename='images/calendar.svg') }}" alt="Calendar" width="64" onerror="this.src='{{ url_for('static', filename='images/placeholder.png') }}'">
+                        <img src="{{ url_for('static', filename='images/calendar.svg') }}" alt="Calendar" width="64" data-fallback="{{ url_for('static', filename='images/placeholder.png') }}">
                         <p class="mt-3">No upcoming appointments</p>
                         <p>Schedule your first appointment with a doctor.</p>
                         <a href="{{ url_for('main.doctors') }}" class="btn btn-primary">Find a Doctor</a>
@@ -245,89 +245,98 @@
 
 {% block scripts %}
 <script>
-// Function to update dashboard data in real-time
-function updateDashboardData() {
-    fetch("{{ url_for('patient.get_dashboard_data') }}")
-        .then(response => response.json())
-        .then(data => {
-            // Update appointment count
-            document.getElementById('appointment-count').textContent = data.appointment_count;
-            
-            // Update medical records count
-            document.getElementById('record-count').textContent = data.record_count;
-            
-            // Update prescriptions count
-            document.getElementById('prescription-count').textContent = data.prescription_count;
-            
-            // Update notifications count
-            document.getElementById('notification-count').textContent = data.notification_count;
-            
-            // Update appointment list
-            const appointmentList = document.getElementById('appointment-list');
-            if (data.appointments.length > 0) {
-                appointmentList.innerHTML = '';
-                data.appointments.forEach(appointment => {
-                    appointmentList.innerHTML += `
-                        <tr>
-                            <td>${appointment.date}</td>
-                            <td>${appointment.time}</td>
-                            <td>${appointment.doctor_name}</td>
-                            <td><span class="badge ${appointment.status_class}">${appointment.status}</span></td>
-                            <td>
-                                <a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                });
-            } else {
-                appointmentList.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="text-center py-4">
-                            <img src="{{ url_for('static', filename='images/calendar.svg') }}" alt="Calendar" width="64" onerror="this.src='{{ url_for('static', filename='images/placeholder.png') }}'">
-                            <p class="mt-3">No upcoming appointments</p>
-                            <p>Schedule your first appointment with a doctor.</p>
-                            <a href="{{ url_for('main.doctors') }}" class="btn btn-primary">Find a Doctor</a>
-                        </td>
-                    </tr>
-                `;
-            }
-            
-            // Update notification list if it exists
-            const notificationList = document.getElementById('notification-list');
-            if (notificationList) {
-                if (data.notifications.length > 0) {
-                    notificationList.innerHTML = '';
-                    data.notifications.forEach(notification => {
-                        notificationList.innerHTML += `
-                            <div class="list-group-item">
-                                <h6 class="mb-1">${notification.title}</h6>
-                                <p class="mb-1">${notification.message}</p>
-                                <small class="text-muted">${notification.time_ago}</small>
-                            </div>
+    // Function to update dashboard data in real-time
+    function updateDashboardData() {
+        fetch("{{ url_for('patient.get_dashboard_data') }}")
+            .then(response => response.json())
+            .then(data => {
+                // Update appointment count
+                document.getElementById('appointment-count').textContent = data.appointment_count;
+                
+                // Update medical records count
+                document.getElementById('record-count').textContent = data.record_count;
+                
+                // Update prescriptions count
+                document.getElementById('prescription-count').textContent = data.prescription_count;
+                
+                // Update notifications count
+                document.getElementById('notification-count').textContent = data.notification_count;
+                
+                // Update appointment list
+                const appointmentList = document.getElementById('appointment-list');
+                if (data.appointments.length > 0) {
+                    appointmentList.innerHTML = '';
+                    data.appointments.forEach(appointment => {
+                        appointmentList.innerHTML += `
+                            <tr>
+                                <td>${appointment.date}</td>
+                                <td>${appointment.time}</td>
+                                <td>${appointment.doctor_name}</td>
+                                <td><span class="badge ${appointment.status_class}">${appointment.status}</span></td>
+                                <td>
+                                    <a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
                         `;
                     });
                 } else {
-                    notificationList.innerHTML = `
-                        <div class="list-group-item text-center py-3">
-                            <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
-                            <p>No notifications yet</p>
-                        </div>
+                    appointmentList.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <img src="{{ url_for('static', filename='images/calendar.svg') }}" alt="Calendar" width="64" data-fallback="{{ url_for('static', filename='images/placeholder.png') }}">
+                                <p class="mt-3">No upcoming appointments</p>
+                                <p>Schedule your first appointment with a doctor.</p>
+                                <a href="{{ url_for('main.doctors') }}" class="btn btn-primary">Find a Doctor</a>
+                            </td>
+                        </tr>
                     `;
                 }
-            }
-        })
-        .catch(error => console.error('Error updating dashboard:', error));
-}
+                
+                // Update notification list if it exists
+                const notificationList = document.getElementById('notification-list');
+                if (notificationList) {
+                    if (data.notifications.length > 0) {
+                        notificationList.innerHTML = '';
+                        data.notifications.forEach(notification => {
+                            notificationList.innerHTML += `
+                                <div class="list-group-item">
+                                    <h6 class="mb-1">${notification.title}</h6>
+                                    <p class="mb-1">${notification.message}</p>
+                                    <small class="text-muted">${notification.time_ago}</small>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        notificationList.innerHTML = `
+                            <div class="list-group-item text-center py-3">
+                                <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                                <p>No notifications yet</p>
+                            </div>
+                        `;
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating dashboard:', error));
+    }
 
-// Update data every 30 seconds
-document.addEventListener('DOMContentLoaded', function() {
-    // Initial update
-    updateDashboardData();
-    
-    // Set interval for updates
-    setInterval(updateDashboardData, 30000);
-});
+    // Update data every 30 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial update
+        updateDashboardData();
+        
+        // Set interval for updates
+        setInterval(updateDashboardData, 30000);
+        
+        // Handle image fallbacks
+        const images = document.querySelectorAll('img[data-fallback]');
+        images.forEach(img => {
+            img.onerror = function() {
+                this.src = this.getAttribute('data-fallback');
+                return false;
+            };
+        });
+    });
 </script>
 {% endblock %}

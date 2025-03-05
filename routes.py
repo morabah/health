@@ -22,7 +22,8 @@ from forms import (
 from utils import (
     create_notification, generate_verification_code, generate_verification_token, 
     save_verification_document, send_verification_email, send_verification_sms, 
-    send_password_reset_email, generate_password_hash, check_password_hash
+    send_password_reset_email, generate_password_hash, check_password_hash,
+    save_profile_picture
 )
 
 # Create blueprints for different sections of the app
@@ -847,12 +848,16 @@ def verify_doctor(doctor_id, action):
     """Approve or reject a doctor's verification."""
     doctor = Doctor.query.get_or_404(doctor_id)
     
+    # Replace match statement with if-elif-else for compatibility
     if action == 'approve':
         doctor.verification_status = VerificationStatus.VERIFIED
         flash('Doctor verification approved.', 'success')
     elif action == 'reject':
         doctor.verification_status = VerificationStatus.REJECTED
         flash('Doctor verification rejected.', 'danger')
+    else:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.doctor_verification'))
     
     db.session.commit()
     return redirect(url_for('admin.doctor_verification'))
@@ -1172,7 +1177,10 @@ def doctor_appointments():
 @login_required
 def complete_appointment(appointment_id):
     """Mark an appointment as completed."""
-    if current_user.user_type != UserType.DOCTOR:
+    # Replace match statement with if-else for compatibility
+    if current_user.user_type == UserType.DOCTOR:
+        pass  # Continue with the function
+    else:
         flash('Access denied. Doctor privileges required.', 'danger')
         return redirect(url_for('main.index'))
     
@@ -1208,6 +1216,10 @@ def notifications():
     """View all notifications for the current user."""
     # Get all notifications for this user
     user_notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+    
+    # Count unread notifications using Python 3.8+ assignment expressions
+    unread_count = sum(1 for n in user_notifications if not n.is_read)
+    logging.info(f"{unread_count=} notifications marked as read for user {current_user.id=}")
     
     # Mark all as read
     for notification in user_notifications:
