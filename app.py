@@ -14,12 +14,14 @@ import uuid
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from mfa import send_verification_code
+from flask_migrate import Migrate
 
 # Initialize extensions
 login_manager = LoginManager()
 mail = Mail()
 bcrypt = Bcrypt()
 limiter = Limiter(key_func=get_remote_address)
+migrate = Migrate()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -38,6 +40,7 @@ def create_app():
     
     # Initialize extensions with app
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message_category = 'info'

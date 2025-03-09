@@ -3,8 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 import enum
 from typing import Optional, List
+from sqlalchemy.types import TypeDecorator, DateTime as BaseDateTime
+import logging
 
 db = SQLAlchemy()
+logger = logging.getLogger(__name__)
 
 class UserType(enum.Enum):
     PATIENT = "patient"
@@ -22,17 +25,43 @@ class AppointmentStatus(enum.Enum):
     CANCELLED = "cancelled"
     COMPLETED = "completed"
 
+class DateTime(TypeDecorator):
+    impl = BaseDateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        # Store as a proper datetime (not as string)
+        return value
+
+    def process_result_value(self, value, dialect):
+        logger.info(f"Processing result value: {value}, type: {type(value)}")
+        if value is None:
+            return None
+        # We always want to ensure a datetime is returned, nothing else
+        if isinstance(value, datetime):
+            return value
+        # Try to convert strings or other formats to datetime
+        try:
+            if isinstance(value, str):
+                return datetime.fromisoformat(value)
+            # Last resort for other formats
+            return datetime.fromtimestamp(value.timestamp())
+        except (AttributeError, ValueError) as e:
+            logger.error(f"Failed to convert value to datetime: {value}, error: {e}")
+            # Return a default datetime rather than failing
+            return datetime.utcnow()
+
 class User(db.Model, UserMixin):
     """Base user model for both patients and doctors."""
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     phone = db.Column(db.String(20), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    user_type = db.Column(db.Enum(UserType), nullable=False)
+    user_type = db.Column(db.Enum(UserType), nullable=False, index=True)
     is_active = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -85,7 +114,8 @@ class Patient(db.Model):
     medical_history = db.Column(db.Text)
     
     # Relationships
-    appointments = db.relationship('Appointment', backref='patient', lazy=True, cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', backref='patient_appointments', lazy=True, cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='patient_reviews', lazy='dynamic')
     
     def __repr__(self) -> str:
         """Return string representation of Patient."""
@@ -117,7 +147,8 @@ class Doctor(db.Model):
     
     # Relationships
     availability = db.relationship('DoctorAvailability', backref='doctor', lazy=True, cascade='all, delete-orphan')
-    appointments = db.relationship('Appointment', backref='doctor', lazy=True, cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', backref='doctor_appointments', lazy=True, cascade='all, delete-orphan')
+    reviews = db.relationship('Review', backref='doctor_reviews', lazy='dynamic')
     
     def __repr__(self) -> str:
         """Return string representation of Doctor."""
@@ -162,20 +193,43 @@ class Appointment(db.Model):
     __tablename__ = 'appointments'
     
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
-    appointment_date = db.Column(db.Date, nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), index=True, nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), index=True, nullable=False)
+    appointment_date = db.Column(DateTime, index=True, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
-    status = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.PENDING)
+    status = db.Column(db.Enum(AppointmentStatus), index=True, default=AppointmentStatus.PENDING)
     reason = db.Column(db.Text)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(DateTime, default=datetime.utcnow)
+    updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship definitions
+    patient = db.relationship('Patient', backref='appointments_list')
+    doctor = db.relationship('Doctor', backref='appointments_list')
     
     def __repr__(self) -> str:
         """Return string representation of Appointment."""
         return f"Appointment(id={self.id}, patient_id={self.patient_id}, doctor_id={self.doctor_id}, appointment_date={self.appointment_date})"
+
+class Review(db.Model):
+    """Reviews for doctors."""
+    __tablename__ = 'reviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('doctors.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    comment = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    patient = db.relationship('Patient', backref='patient_reviews', lazy='select')
+    doctor = db.relationship('Doctor', backref='doctor_reviews', lazy='select')
+    
+    def __repr__(self) -> str:
+        """Return string representation of Review."""
+        return f"Review(id={self.id}, patient_id={self.patient_id}, doctor_id={self.doctor_id}, rating={self.rating})"
 
 class Notification(db.Model):
     """Notifications for users."""

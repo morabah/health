@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Review for Dr. {{ doctor.name }}</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label for="rating">Rating (1-5 stars)</label>
+            <select class="form-control" id="rating" name="rating" required>
+                <option value="5">5 - Excellent</option>
+                <option value="4">4 - Very Good</option>
+                <option value="3">3 - Good</option>
+                <option value="2">2 - Fair</option>
+                <option value="1">1 - Poor</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="comment">Your Review</label>
+            <textarea class="form-control" id="comment" name="comment" rows="4"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit Review</button>
+    </form>
+</div>
+{% endblock %}

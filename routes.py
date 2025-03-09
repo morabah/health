@@ -10,8 +10,9 @@ import pytz
 import json
 import logging
 from werkzeug.utils import secure_filename
+from errors import ErrorHandler
 
-from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus, VerificationDocument
+from models import User, Doctor, Patient, Appointment, DoctorAvailability, Notification, UserType, AppointmentStatus, VerificationStatus, VerificationDocument, Review
 from models import db
 from forms import (
     LoginForm, PatientRegistrationForm, DoctorRegistrationForm,
@@ -37,7 +38,7 @@ admin = Blueprint('admin', __name__)
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.user_type != UserType.ADMIN:
+        if not current_user.is_authenticated or current_user.user_type.value != UserType.ADMIN.value:
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)
@@ -46,7 +47,7 @@ def admin_required(f):
 def doctor_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.user_type != UserType.DOCTOR:
+        if not current_user.is_authenticated or current_user.user_type.value != UserType.DOCTOR.value:
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)
@@ -55,7 +56,7 @@ def doctor_required(f):
 def patient_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.user_type != UserType.PATIENT:
+        if not current_user.is_authenticated or current_user.user_type.value != UserType.PATIENT.value:
             flash('You do not have permission to access this page.', 'danger')
             return redirect(url_for('main.index'))
         return f(*args, **kwargs)
@@ -243,7 +244,7 @@ def verify_phone(user_id):
             # Check if email is also verified
             if user.email_verified:
                 # For patients, activate account immediately
-                if user.user_type == UserType.PATIENT:
+                if user.user_type.value == UserType.PATIENT.value:
                     user.is_active = True
                     db.session.commit()
                     flash('Your account is now active. You can log in.', 'success')
@@ -287,7 +288,7 @@ def verify_email(token):
     # Check if phone is also verified
     if user.phone_verified:
         # For patients, activate account immediately
-        if user.user_type == UserType.PATIENT:
+        if user.user_type.value == UserType.PATIENT.value:
             user.is_active = True
             db.session.commit()
             flash('Your account is now active. You can log in.', 'success')
@@ -319,36 +320,40 @@ def login():
         if user:
             logger.info(f"Login attempt for user: {user.email}, ID: {user.id}, Active: {user.is_active}, " +
                        f"Email verified: {user.email_verified}, Phone verified: {user.phone_verified}")
-            if user.user_type == UserType.DOCTOR:
+            if user.user_type.value == UserType.DOCTOR.value:
                 logger.info(f"Doctor verification status: {user.doctor.verification_status}")
         else:
             logger.warning(f"Login attempt for non-existent user: {form.email.data}")
         
-        # Debug password check
-        password_ok = False
+        # Log the password input for debugging
+        logger.info(f"Password input for user {form.email.data}: {form.password.data}")
+        
         if user:
             password_ok = check_password_hash(user.password_hash, form.password.data)
-            logger.info(f"Password check result: {password_ok}")
+            logger.info(f"Password check result for user {form.email.data}: {password_ok}")
+        else:
+            password_ok = False
+            logger.warning(f"Login attempt for non-existent user: {form.email.data}")
         
         if user and password_ok:
             # Check verification status first
             if not user.email_verified or not user.phone_verified:
-                flash('Please verify your email and phone number before logging in.', 'warning')
+                flash(ErrorHandler.get_message('verification_required'), 'warning')
                 return redirect(url_for('auth.pending_verification', user_id=user.id))
             
             # For doctors, check credential verification
-            if user.user_type == UserType.DOCTOR:
+            if user.user_type.value == UserType.DOCTOR.value:
                 if user.doctor.verification_status == VerificationStatus.PENDING:
-                    flash('Your account is pending credential verification. You will be notified once verified.', 'info')
+                    flash(ErrorHandler.get_message('doctor_pending_verification'), 'info')
                     return redirect(url_for('main.index'))
                 elif user.doctor.verification_status == VerificationStatus.REJECTED:
-                    flash('Your credential verification was rejected. Please contact support for more information.', 'danger')
+                    flash(ErrorHandler.get_message('doctor_verification_rejected'), 'danger')
                     return redirect(url_for('main.index'))
             
             # Check if user is active
             if not user.is_active:
                 # If we get here, the user is verified but not active for some other reason
-                flash('Your account is not active. Please contact support.', 'warning')
+                flash(ErrorHandler.get_message('account_inactive'), 'warning')
                 return redirect(url_for('main.index'))
                 
             # All checks passed, log the user in
@@ -356,12 +361,12 @@ def login():
             
             # Redirect to appropriate dashboard
             next_page = request.args.get('next')
-            if user.user_type == UserType.PATIENT:
+            if user.user_type.value == UserType.PATIENT.value:
                 return redirect(next_page or url_for('patient.dashboard'))
             else:
                 return redirect(next_page or url_for('doctor.doctor_dashboard'))
         else:
-            flash('Login failed. Please check your email and password.', 'danger')
+            flash(ErrorHandler.get_message('login_failed'), 'danger')
     
     return render_template('auth/login.html', form=form)
 
@@ -391,7 +396,7 @@ def forgot_password():
             send_password_reset_email(current_app.extensions['mail'], user, token)
         
         # Always show success message to prevent email enumeration
-        flash('If your email is registered, you will receive password reset instructions.', 'info')
+        flash(ErrorHandler.get_message('password_reset_sent'), 'info')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/forgot_password.html', form=form)
@@ -404,7 +409,7 @@ def reset_password(token):
     user = User.query.filter_by(email_verification_token=token).first()
     
     if not user:
-        flash('Invalid or expired reset link.', 'danger')
+        flash(ErrorHandler.get_message('invalid_reset_link'), 'danger')
         return redirect(url_for('auth.login'))
     
     form = ResetPasswordForm()
@@ -414,7 +419,7 @@ def reset_password(token):
         user.email_verification_token = None
         db.session.commit()
         
-        flash('Your password has been reset. You can now log in with your new password.', 'success')
+        flash(ErrorHandler.get_message('password_reset_success'), 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('auth/reset_password.html', form=form)
@@ -423,14 +428,15 @@ def reset_password(token):
 @patient.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.user_type != UserType.PATIENT:
+    if current_user.user_type.value != UserType.PATIENT.value:
         abort(403)
     
     patient = current_user.patient
     
     # Get appointment data
     appointments = Appointment.query.filter_by(patient_id=patient.id).order_by(Appointment.appointment_date.desc()).all()
-    upcoming_appointments = [a for a in appointments if a.appointment_date >= datetime.now().date()]
+    upcoming_appointments = [a for a in appointments if a.appointment_date.date() >= datetime.now().date()]
+
     
     # Get notification data
     notifications = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(5).all()
@@ -590,9 +596,8 @@ def get_time_ago(timestamp):
 @doctor.route('/dashboard')
 @login_required
 def doctor_dashboard():
-    if current_user.user_type != UserType.DOCTOR:
-        flash('Access denied. Doctor privileges required.', 'danger')
-        return redirect(url_for('main.index'))
+    if current_user.user_type.value != UserType.DOCTOR.value:
+        abort(403)
     
     doctor = Doctor.query.filter_by(user_id=current_user.id).first()
     
@@ -633,9 +638,8 @@ def doctor_dashboard():
 @login_required
 def profile():
     """Doctor profile management."""
-    if current_user.user_type != UserType.DOCTOR:
-        flash('Access denied. Doctor privileges required.', 'danger')
-        return redirect(url_for('main.index'))
+    if current_user.user_type.value != UserType.DOCTOR.value:
+        abort(403)
     
     doctor = Doctor.query.filter_by(user_id=current_user.id).first()
     if not doctor:
@@ -687,9 +691,8 @@ def profile():
 @login_required
 def manage_availability():
     """Manage doctor's available consultation times."""
-    if current_user.user_type != UserType.DOCTOR:
-        flash('Access denied. Doctor privileges required.', 'danger')
-        return redirect(url_for('main.index'))
+    if current_user.user_type.value != UserType.DOCTOR.value:
+        abort(403)
     
     doctor = Doctor.query.filter_by(user_id=current_user.id).first()
     if not doctor:
@@ -752,9 +755,8 @@ def manage_availability():
 @login_required
 def delete_availability(availability_id):
     """Delete a doctor's availability time slot."""
-    if current_user.user_type != UserType.DOCTOR:
-        flash('Access denied. Doctor privileges required.', 'danger')
-        return redirect(url_for('main.index'))
+    if current_user.user_type.value != UserType.DOCTOR.value:
+        abort(403)
     
     doctor = Doctor.query.filter_by(user_id=current_user.id).first()
     if not doctor:
@@ -804,7 +806,24 @@ def doctors():
     if not doctors and request.method == 'GET':
         doctors = Doctor.query.filter_by(verification_status=VerificationStatus.VERIFIED).all()
     
-    return render_template('main/doctors.html', form=form, doctors=doctors)
+    return render_template('main/doctors.html', doctors=doctors, form=form)
+
+@main.route('/api/doctors', methods=['GET'])
+def api_doctors():
+    """API endpoint for doctor data."""
+    doctors = Doctor.query.filter_by(verification_status=VerificationStatus.VERIFIED).all()
+    doctors_data = []
+    for doctor in doctors:
+        doctors_data.append({
+            'id': doctor.id,
+            'name': f"{doctor.user.first_name} {doctor.user.last_name}",
+            'specialty': doctor.specialty,
+            'location': doctor.location,
+            'languages': doctor.languages,
+            'rating': doctor.average_rating if hasattr(doctor, 'average_rating') else None,
+            'profile_picture': doctor.profile_picture
+        })
+    return jsonify(doctors_data)
 
 @main.route('/doctor/<int:doctor_id>')
 def doctor_profile(doctor_id):
@@ -823,7 +842,10 @@ def doctor_profile(doctor_id):
     availabilities = DoctorAvailability.query.filter_by(doctor_id=doctor.id).all()
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
     
-    return render_template('main/doctor_profile.html', doctor=doctor, user=user, availabilities=availabilities, days=days)
+    # Get reviews
+    reviews = Review.query.filter_by(doctor_id=doctor_id).all()
+    
+    return render_template('main/doctor_profile.html', doctor=doctor, user=user, availabilities=availabilities, days=days, reviews=reviews)
 
 # Admin routes
 @admin.route('/dashboard')
@@ -924,7 +946,7 @@ def book_appointment(doctor_id):
     current_app.logger.debug(f"book_appointment called for doctor_id={doctor_id}")
     current_app.logger.debug(f"User type: {current_user.user_type}")
     
-    if current_user.user_type != UserType.PATIENT:
+    if current_user.user_type.value != UserType.PATIENT.value:
         flash('Only patients can book appointments.', 'danger')
         return redirect(url_for('main.index'))
     
@@ -1038,7 +1060,7 @@ def appointments():
     print(f"DEBUG: appointments route called for user: {current_user.id}")
     print(f"DEBUG: User type: {current_user.user_type}")
     
-    if current_user.user_type != UserType.PATIENT:
+    if current_user.user_type.value != UserType.PATIENT.value:
         print(f"DEBUG: User is not a patient: {current_user.user_type}")
         flash('Access denied.', 'danger')
         return redirect(url_for('main.index'))
@@ -1064,7 +1086,7 @@ def appointments():
         print(f"DEBUG: Processing appointment: {appointment.id}, date: {appointment.appointment_date}, status: {appointment.status}")
         if appointment.status == AppointmentStatus.CANCELLED:
             cancelled_appointments.append(appointment)
-        elif appointment.appointment_date < today or (appointment.appointment_date == today and appointment.end_time < datetime.now().time()):
+        elif appointment.appointment_date.date() < today or (appointment.appointment_date.date() == today and appointment.end_time < datetime.now().time()):
             past_appointments.append(appointment)
         else:
             upcoming_appointments.append(appointment)
@@ -1080,7 +1102,7 @@ def appointments():
 @login_required
 def cancel_appointment(appointment_id):
     """Cancel an appointment."""
-    if current_user.user_type != UserType.PATIENT:
+    if current_user.user_type.value != UserType.PATIENT.value:
         flash('Access denied.', 'danger')
         return redirect(url_for('main.index'))
     
@@ -1139,7 +1161,7 @@ def cancel_appointment(appointment_id):
 @login_required
 def doctor_appointments():
     """View all doctor appointments."""
-    if current_user.user_type != UserType.DOCTOR:
+    if current_user.user_type.value != UserType.DOCTOR.value:
         flash('Access denied. Doctor privileges required.', 'danger')
         return redirect(url_for('main.index'))
     
@@ -1161,9 +1183,9 @@ def doctor_appointments():
     for appointment in appointments:
         if appointment.status == AppointmentStatus.CANCELLED:
             continue
-        elif appointment.appointment_date == today:
+        elif appointment.appointment_date.date() == today:
             today_appointments.append(appointment)
-        elif appointment.appointment_date > today:
+        elif appointment.appointment_date.date() > today:
             upcoming_appointments.append(appointment)
         else:
             past_appointments.append(appointment)
@@ -1178,7 +1200,7 @@ def doctor_appointments():
 def complete_appointment(appointment_id):
     """Mark an appointment as completed."""
     # Replace match statement with if-else for compatibility
-    if current_user.user_type == UserType.DOCTOR:
+    if current_user.user_type.value == UserType.DOCTOR.value:
         pass  # Continue with the function
     else:
         flash('Access denied. Doctor privileges required.', 'danger')
@@ -1236,6 +1258,45 @@ def unread_notifications_count():
     """Get the count of unread notifications for the current user."""
     count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
     return jsonify({'count': count})
+
+# Review routes
+@main.route('/<int:doctor_id>/review', methods=['GET', 'POST'])
+@login_required
+def add_review(doctor_id):
+    doctor = Doctor.query.get_or_404(doctor_id)
+    
+    if request.method == 'POST':
+        try:
+            rating = int(request.form.get('rating'))
+            comment = request.form.get('comment')
+            
+            # Check if user already left a review
+            existing_review = Review.query.filter_by(
+                patient_id=current_user.id, 
+                doctor_id=doctor_id
+            ).first()
+            
+            if existing_review:
+                existing_review.rating = rating
+                existing_review.comment = comment
+            else:
+                new_review = Review(
+                    patient_id=current_user.id,
+                    doctor_id=doctor_id,
+                    rating=rating,
+                    comment=comment
+                )
+                db.session.add(new_review)
+                
+            db.session.commit()
+            flash('Your review has been submitted!', 'success')
+            return redirect(url_for('main.doctor_profile', doctor_id=doctor_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error submitting review: {str(e)}', 'danger')
+    
+    return render_template('add_review.html', doctor=doctor)
 
 # Utility functions
 def format_time_slot(time_obj):
